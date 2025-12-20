@@ -1,0 +1,976 @@
+<%#
+ SocksClash Overview Page
+ Modern and beautiful dashboard
+-%>
+
+<%+header%>
+
+<style>
+:root {
+    --sc-primary: #6366f1;
+    --sc-primary-dark: #4f46e5;
+    --sc-primary-light: #818cf8;
+    --sc-success: #10b981;
+    --sc-warning: #f59e0b;
+    --sc-danger: #ef4444;
+    --sc-info: #3b82f6;
+    --sc-dark: #1e293b;
+    --sc-darker: #0f172a;
+    --sc-light: #f8fafc;
+    --sc-gray: #64748b;
+    --sc-border: #e2e8f0;
+    --sc-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    --sc-shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    --sc-radius: 12px;
+    --sc-radius-sm: 8px;
+    --sc-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sc-container {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.sc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.sc-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sc-logo {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--sc-primary), var(--sc-primary-dark));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    box-shadow: var(--sc-shadow);
+}
+
+.sc-title h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--sc-dark);
+    margin: 0;
+}
+
+.sc-title-sub {
+    font-size: 14px;
+    color: var(--sc-gray);
+    margin-top: 2px;
+}
+
+.sc-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: var(--sc-radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--sc-transition);
+    text-decoration: none;
+}
+
+.sc-btn-primary {
+    background: linear-gradient(135deg, var(--sc-primary), var(--sc-primary-dark));
+    color: white;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.sc-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+.sc-btn-success {
+    background: linear-gradient(135deg, var(--sc-success), #059669);
+    color: white;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
+.sc-btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.sc-btn-danger {
+    background: linear-gradient(135deg, var(--sc-danger), #dc2626);
+    color: white;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+}
+
+.sc-btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+}
+
+.sc-btn-outline {
+    background: white;
+    color: var(--sc-primary);
+    border: 2px solid var(--sc-primary);
+}
+
+.sc-btn-outline:hover {
+    background: var(--sc-primary);
+    color: white;
+}
+
+.sc-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.sc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.sc-card {
+    background: white;
+    border-radius: var(--sc-radius);
+    box-shadow: var(--sc-shadow);
+    overflow: hidden;
+    transition: var(--sc-transition);
+}
+
+.sc-card:hover {
+    box-shadow: var(--sc-shadow-lg);
+    transform: translateY(-2px);
+}
+
+.sc-card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--sc-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sc-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--sc-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sc-card-title-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.sc-card-body {
+    padding: 24px;
+}
+
+.sc-status-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.sc-status-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.sc-status-card.running::before {
+    background: linear-gradient(90deg, var(--sc-success), #34d399);
+}
+
+.sc-status-card.stopped::before {
+    background: linear-gradient(90deg, var(--sc-danger), #f87171);
+}
+
+.sc-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.sc-status-dot {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    animation: pulse 2s infinite;
+}
+
+.sc-status-dot.running {
+    background: linear-gradient(135deg, var(--sc-success), #34d399);
+    color: white;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+}
+
+.sc-status-dot.stopped {
+    background: linear-gradient(135deg, var(--sc-gray), #94a3b8);
+    color: white;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.sc-status-info h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 4px 0;
+    color: var(--sc-dark);
+}
+
+.sc-status-info p {
+    font-size: 14px;
+    color: var(--sc-gray);
+    margin: 0;
+}
+
+.sc-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.sc-stat {
+    background: var(--sc-light);
+    padding: 16px;
+    border-radius: var(--sc-radius-sm);
+    text-align: center;
+}
+
+.sc-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--sc-primary);
+    margin-bottom: 4px;
+}
+
+.sc-stat-label {
+    font-size: 12px;
+    color: var(--sc-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sc-proxy-info {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sc-proxy-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--sc-light);
+    border-radius: var(--sc-radius-sm);
+    transition: var(--sc-transition);
+}
+
+.sc-proxy-item:hover {
+    background: #e0e7ff;
+}
+
+.sc-proxy-item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sc-proxy-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: white;
+}
+
+.sc-proxy-icon.socks {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.sc-proxy-icon.http {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.sc-proxy-icon.mixed {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.sc-proxy-name {
+    font-weight: 600;
+    color: var(--sc-dark);
+    margin-bottom: 2px;
+}
+
+.sc-proxy-addr {
+    font-size: 13px;
+    color: var(--sc-gray);
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.sc-copy-btn {
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid var(--sc-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--sc-transition);
+    font-size: 12px;
+    color: var(--sc-gray);
+}
+
+.sc-copy-btn:hover {
+    background: var(--sc-primary);
+    border-color: var(--sc-primary);
+    color: white;
+}
+
+.sc-traffic-card .sc-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sc-traffic-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.sc-traffic-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+}
+
+.sc-traffic-icon.upload {
+    background: linear-gradient(135deg, var(--sc-primary), var(--sc-primary-dark));
+}
+
+.sc-traffic-icon.download {
+    background: linear-gradient(135deg, var(--sc-success), #059669);
+}
+
+.sc-traffic-info {
+    flex: 1;
+}
+
+.sc-traffic-label {
+    font-size: 12px;
+    color: var(--sc-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.sc-traffic-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--sc-dark);
+}
+
+.sc-traffic-speed {
+    font-size: 13px;
+    color: var(--sc-gray);
+    text-align: right;
+}
+
+.sc-mode-selector {
+    display: flex;
+    gap: 8px;
+    padding: 4px;
+    background: var(--sc-light);
+    border-radius: var(--sc-radius-sm);
+}
+
+.sc-mode-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--sc-gray);
+    cursor: pointer;
+    transition: var(--sc-transition);
+}
+
+.sc-mode-btn:hover {
+    color: var(--sc-primary);
+}
+
+.sc-mode-btn.active {
+    background: white;
+    color: var(--sc-primary);
+    box-shadow: var(--sc-shadow);
+}
+
+.sc-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.sc-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 16px;
+    background: var(--sc-light);
+    border: none;
+    border-radius: var(--sc-radius-sm);
+    cursor: pointer;
+    transition: var(--sc-transition);
+}
+
+.sc-action-btn:hover {
+    background: #e0e7ff;
+    transform: translateY(-2px);
+}
+
+.sc-action-btn:active {
+    transform: translateY(0);
+}
+
+.sc-action-icon {
+    font-size: 24px;
+}
+
+.sc-action-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--sc-dark);
+}
+
+.sc-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 16px 24px;
+    background: var(--sc-dark);
+    color: white;
+    border-radius: var(--sc-radius-sm);
+    box-shadow: var(--sc-shadow-lg);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: var(--sc-transition);
+    z-index: 9999;
+    font-size: 14px;
+}
+
+.sc-toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.sc-toast.success {
+    background: var(--sc-success);
+}
+
+.sc-toast.error {
+    background: var(--sc-danger);
+}
+
+.sc-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.sc-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sc-badge-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--sc-success);
+}
+
+.sc-badge-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--sc-warning);
+}
+
+.sc-badge-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--sc-danger);
+}
+
+.sc-connection-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.sc-connection-table th,
+.sc-connection-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--sc-border);
+    font-size: 13px;
+}
+
+.sc-connection-table th {
+    background: var(--sc-light);
+    font-weight: 600;
+    color: var(--sc-dark);
+}
+
+.sc-connection-table tr:hover {
+    background: var(--sc-light);
+}
+
+@media (max-width: 768px) {
+    .sc-container {
+        padding: 16px;
+    }
+    
+    .sc-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .sc-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .sc-stats {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<div class="sc-container">
+    <!-- Header -->
+    <div class="sc-header">
+        <div class="sc-title">
+            <div class="sc-logo">⚡</div>
+            <div>
+                <h1>SocksClash</h1>
+                <div class="sc-title-sub">Proxy Only Mode</div>
+            </div>
+        </div>
+        <div class="sc-controls">
+            <button id="btn-start" class="sc-btn sc-btn-success" onclick="startService()">
+                <span>▶</span> <%:Start%>
+            </button>
+            <button id="btn-stop" class="sc-btn sc-btn-danger" onclick="stopService()">
+                <span>■</span> <%:Stop%>
+            </button>
+            <button id="btn-restart" class="sc-btn sc-btn-outline" onclick="restartService()">
+                <span>↻</span> <%:Restart%>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="sc-grid">
+        <!-- Status Card -->
+        <div class="sc-card sc-status-card" id="status-card">
+            <div class="sc-card-header">
+                <div class="sc-card-title">
+                    <div class="sc-card-title-icon" style="background: #e0e7ff; color: var(--sc-primary);">📊</div>
+                    <%:Service Status%>
+                </div>
+                <span id="status-badge" class="sc-badge sc-badge-danger"><%:Stopped%></span>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-status-indicator">
+                    <div id="status-dot" class="sc-status-dot stopped">
+                        <span id="status-icon">✕</span>
+                    </div>
+                    <div class="sc-status-info">
+                        <h3 id="status-text"><%:Stopped%></h3>
+                        <p id="status-desc"><%:SocksClash is not running%></p>
+                    </div>
+                </div>
+                <div class="sc-stats">
+                    <div class="sc-stat">
+                        <div class="sc-stat-value" id="stat-uptime">--</div>
+                        <div class="sc-stat-label"><%:Uptime%></div>
+                    </div>
+                    <div class="sc-stat">
+                        <div class="sc-stat-value" id="stat-mode">--</div>
+                        <div class="sc-stat-label"><%:Mode%></div>
+                    </div>
+                    <div class="sc-stat">
+                        <div class="sc-stat-value" id="stat-version">--</div>
+                        <div class="sc-stat-label"><%:Core Version%></div>
+                    </div>
+                    <div class="sc-stat">
+                        <div class="sc-stat-value" id="stat-connections">0</div>
+                        <div class="sc-stat-label"><%:Connections%></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Proxy Addresses Card -->
+        <div class="sc-card">
+            <div class="sc-card-header">
+                <div class="sc-card-title">
+                    <div class="sc-card-title-icon" style="background: #fef3c7; color: var(--sc-warning);">🔗</div>
+                    <%:Proxy Addresses%>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-proxy-info">
+                    <div class="sc-proxy-item" id="socks-proxy">
+                        <div class="sc-proxy-item-left">
+                            <div class="sc-proxy-icon socks">S5</div>
+                            <div>
+                                <div class="sc-proxy-name">SOCKS5 Proxy</div>
+                                <div class="sc-proxy-addr" id="socks-addr">--:--</div>
+                            </div>
+                        </div>
+                        <button class="sc-copy-btn" onclick="copyToClipboard('socks-addr')">📋 Copy</button>
+                    </div>
+                    <div class="sc-proxy-item" id="http-proxy">
+                        <div class="sc-proxy-item-left">
+                            <div class="sc-proxy-icon http">H</div>
+                            <div>
+                                <div class="sc-proxy-name">HTTP Proxy</div>
+                                <div class="sc-proxy-addr" id="http-addr">--:--</div>
+                            </div>
+                        </div>
+                        <button class="sc-copy-btn" onclick="copyToClipboard('http-addr')">📋 Copy</button>
+                    </div>
+                    <div class="sc-proxy-item" id="mixed-proxy">
+                        <div class="sc-proxy-item-left">
+                            <div class="sc-proxy-icon mixed">M</div>
+                            <div>
+                                <div class="sc-proxy-name">Mixed Proxy</div>
+                                <div class="sc-proxy-addr" id="mixed-addr">--:--</div>
+                            </div>
+                        </div>
+                        <button class="sc-copy-btn" onclick="copyToClipboard('mixed-addr')">📋 Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Traffic Card -->
+        <div class="sc-card sc-traffic-card">
+            <div class="sc-card-header">
+                <div class="sc-card-title">
+                    <div class="sc-card-title-icon" style="background: #dcfce7; color: var(--sc-success);">📈</div>
+                    <%:Traffic%>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-traffic-item">
+                    <div class="sc-traffic-icon upload">↑</div>
+                    <div class="sc-traffic-info">
+                        <div class="sc-traffic-label"><%:Upload%></div>
+                        <div class="sc-traffic-value" id="traffic-up">0 B</div>
+                    </div>
+                    <div class="sc-traffic-speed" id="speed-up">0 B/s</div>
+                </div>
+                <div class="sc-traffic-item">
+                    <div class="sc-traffic-icon download">↓</div>
+                    <div class="sc-traffic-info">
+                        <div class="sc-traffic-label"><%:Download%></div>
+                        <div class="sc-traffic-value" id="traffic-down">0 B</div>
+                    </div>
+                    <div class="sc-traffic-speed" id="speed-down">0 B/s</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode Selector Card -->
+        <div class="sc-card">
+            <div class="sc-card-header">
+                <div class="sc-card-title">
+                    <div class="sc-card-title-icon" style="background: #e0e7ff; color: var(--sc-primary);">⚙️</div>
+                    <%:Proxy Mode%>
+                </div>
+            </div>
+            <div class="sc-card-body">
+                <div class="sc-mode-selector">
+                    <button class="sc-mode-btn" data-mode="rule" onclick="switchMode('rule')"><%:Rule%></button>
+                    <button class="sc-mode-btn" data-mode="global" onclick="switchMode('global')"><%:Global%></button>
+                    <button class="sc-mode-btn" data-mode="direct" onclick="switchMode('direct')"><%:Direct%></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="sc-card" style="margin-bottom: 32px;">
+        <div class="sc-card-header">
+            <div class="sc-card-title">
+                <div class="sc-card-title-icon" style="background: #fce7f3; color: #ec4899;">🚀</div>
+                <%:Quick Actions%>
+            </div>
+        </div>
+        <div class="sc-card-body">
+            <div class="sc-quick-actions">
+                <button class="sc-action-btn" onclick="openDashboard()">
+                    <span class="sc-action-icon">📊</span>
+                    <span class="sc-action-label"><%:Dashboard%></span>
+                </button>
+                <button class="sc-action-btn" onclick="location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/settings")%>'">
+                    <span class="sc-action-icon">⚙️</span>
+                    <span class="sc-action-label"><%:Settings%></span>
+                </button>
+                <button class="sc-action-btn" onclick="location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/servers")%>'">
+                    <span class="sc-action-icon">🖥️</span>
+                    <span class="sc-action-label"><%:Servers%></span>
+                </button>
+                <button class="sc-action-btn" onclick="location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/rules")%>'">
+                    <span class="sc-action-icon">📋</span>
+                    <span class="sc-action-label"><%:Rules%></span>
+                </button>
+                <button class="sc-action-btn" onclick="location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/log")%>'">
+                    <span class="sc-action-icon">📜</span>
+                    <span class="sc-action-label"><%:Logs%></span>
+                </button>
+                <button class="sc-action-btn" onclick="closeAllConnections()">
+                    <span class="sc-action-icon">🔌</span>
+                    <span class="sc-action-label"><%:Close Connections%></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="sc-toast"></div>
+
+<script>
+var statusInterval;
+var trafficInterval;
+var dashboardPort = 9090;
+var lanIp = '';
+
+function showToast(message, type) {
+    var toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'sc-toast show ' + (type || '');
+    setTimeout(function() {
+        toast.className = 'sc-toast';
+    }, 3000);
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    var k = 1024;
+    var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function copyToClipboard(elementId) {
+    var text = document.getElementById(elementId).textContent;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('Copied: ' + text, 'success');
+        });
+    } else {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('Copied: ' + text, 'success');
+    }
+}
+
+function updateStatus() {
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/status")%>', null, function(xhr, data) {
+        if (data) {
+            var running = data.running;
+            var statusCard = document.getElementById('status-card');
+            var statusDot = document.getElementById('status-dot');
+            var statusIcon = document.getElementById('status-icon');
+            var statusText = document.getElementById('status-text');
+            var statusDesc = document.getElementById('status-desc');
+            var statusBadge = document.getElementById('status-badge');
+            
+            lanIp = data.lan_ip;
+            dashboardPort = data.cn_port;
+            
+            if (running) {
+                statusCard.className = 'sc-card sc-status-card running';
+                statusDot.className = 'sc-status-dot running';
+                statusIcon.textContent = '✓';
+                statusText.textContent = '<%:Running%>';
+                statusDesc.textContent = '<%:SocksClash is active and running%>';
+                statusBadge.className = 'sc-badge sc-badge-success';
+                statusBadge.textContent = '<%:Running%>';
+                
+                document.getElementById('btn-start').disabled = true;
+                document.getElementById('btn-stop').disabled = false;
+            } else {
+                statusCard.className = 'sc-card sc-status-card stopped';
+                statusDot.className = 'sc-status-dot stopped';
+                statusIcon.textContent = '✕';
+                statusText.textContent = '<%:Stopped%>';
+                statusDesc.textContent = '<%:SocksClash is not running%>';
+                statusBadge.className = 'sc-badge sc-badge-danger';
+                statusBadge.textContent = '<%:Stopped%>';
+                
+                document.getElementById('btn-start').disabled = false;
+                document.getElementById('btn-stop').disabled = true;
+            }
+            
+            // Update stats
+            document.getElementById('stat-uptime').textContent = data.uptime || '--';
+            document.getElementById('stat-mode').textContent = data.mode || '--';
+            document.getElementById('stat-version').textContent = data.core_version || '--';
+            
+            // Update proxy addresses
+            document.getElementById('socks-addr').textContent = data.lan_ip + ':' + data.socks_port;
+            document.getElementById('http-addr').textContent = data.lan_ip + ':' + data.http_port;
+            document.getElementById('mixed-addr').textContent = data.lan_ip + ':' + data.mixed_port;
+            
+            // Update mode buttons
+            var modeButtons = document.querySelectorAll('.sc-mode-btn');
+            modeButtons.forEach(function(btn) {
+                btn.classList.remove('active');
+                if (btn.dataset.mode === data.mode) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+    });
+}
+
+function updateTraffic() {
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/get_traffic")%>', null, function(xhr, data) {
+        if (data) {
+            document.getElementById('traffic-up').textContent = formatBytes(data.up || 0);
+            document.getElementById('traffic-down').textContent = formatBytes(data.down || 0);
+            document.getElementById('speed-up').textContent = formatBytes(data.up_speed || 0) + '/s';
+            document.getElementById('speed-down').textContent = formatBytes(data.down_speed || 0) + '/s';
+        }
+    });
+    
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/get_connections")%>', null, function(xhr, data) {
+        if (data && data.connections) {
+            document.getElementById('stat-connections').textContent = data.connections.length;
+        }
+    });
+}
+
+function startService() {
+    document.getElementById('btn-start').disabled = true;
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/start")%>', null, function(xhr, data) {
+        showToast(data.message || 'Starting...', 'success');
+        setTimeout(updateStatus, 2000);
+    });
+}
+
+function stopService() {
+    document.getElementById('btn-stop').disabled = true;
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/stop")%>', null, function(xhr, data) {
+        showToast(data.message || 'Stopped', 'success');
+        setTimeout(updateStatus, 1000);
+    });
+}
+
+function restartService() {
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/restart")%>', null, function(xhr, data) {
+        showToast(data.message || 'Restarting...', 'success');
+        setTimeout(updateStatus, 3000);
+    });
+}
+
+function switchMode(mode) {
+    showToast('Switching to ' + mode + ' mode...', '');
+    // TODO: Implement mode switch API
+}
+
+function closeAllConnections() {
+    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/close_connections")%>', null, function(xhr, data) {
+        showToast('All connections closed', 'success');
+        updateTraffic();
+    });
+}
+
+function openDashboard() {
+    var url = 'http://' + lanIp + ':' + dashboardPort + '/ui';
+    window.open(url, '_blank');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus();
+    updateTraffic();
+    
+    statusInterval = setInterval(updateStatus, 5000);
+    trafficInterval = setInterval(updateTraffic, 2000);
+});
+
+// Cleanup on page leave
+window.addEventListener('beforeunload', function() {
+    clearInterval(statusInterval);
+    clearInterval(trafficInterval);
+});
+</script>
+
+<%+footer%>

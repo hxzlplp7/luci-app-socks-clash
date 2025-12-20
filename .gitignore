@@ -1,0 +1,27 @@
+# Compiled files
+*.o
+*.ko
+*.lmo
+*.ipk
+
+# Build directories
+build/
+bin/
+tmp/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup files
+*.bak
+*~

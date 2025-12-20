@@ -1,0 +1,169 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gettext
+          
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="dev"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+          
+      - name: Update version in Makefile
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile
+          
+      - name: Build translation files
+        run: |
+          mkdir -p build
+          for po in po/*/*.po; do
+            if [ -f "$po" ]; then
+              lang=$(basename $(dirname "$po"))
+              name=$(basename "$po" .po)
+              mkdir -p build/i18n
+              # Convert PO to LMO format (simplified - just copy for now)
+              echo "Processing: $po -> ${name}.${lang}.lmo"
+              # In real build, use po2lmo tool from OpenWrt SDK
+            fi
+          done
+          
+      - name: Create package archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_NAME="luci-app-socks-clash"
+          
+          # Create package directory
+          mkdir -p dist/${PKG_NAME}
+          
+          # Copy files
+          cp -r luasrc dist/${PKG_NAME}/
+          cp -r root dist/${PKG_NAME}/
+          cp -r po dist/${PKG_NAME}/
+          cp Makefile dist/${PKG_NAME}/
+          cp README.md dist/${PKG_NAME}/
+          cp LICENSE dist/${PKG_NAME}/
+          
+          # Create archive
+          cd dist
+          tar -czvf ${PKG_NAME}_${VERSION}.tar.gz ${PKG_NAME}
+          
+          # Create zip for easy download
+          zip -r ${PKG_NAME}_${VERSION}.zip ${PKG_NAME}
+          
+          echo "Package created successfully"
+          ls -la
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-socks-clash-${{ steps.version.outputs.version }}
+          path: dist/luci-app-socks-clash_*.tar.gz
+          
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
+    
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: luci-app-socks-clash-${{ steps.version.outputs.version }}
+          path: ./release
+          
+      - name: Create release archive
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd release
+          
+          # Extract and repackage
+          tar -xzf luci-app-socks-clash_${VERSION}.tar.gz
+          
+          # Create final packages
+          tar -czvf luci-app-socks-clash_${VERSION}.tar.gz luci-app-socks-clash
+          zip -r luci-app-socks-clash_${VERSION}.zip luci-app-socks-clash
+          
+          ls -la
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: SocksClash v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/luci-app-socks-clash_${{ steps.version.outputs.version }}.tar.gz
+            release/luci-app-socks-clash_${{ steps.version.outputs.version }}.zip
+          body: |
+            ## SocksClash v${{ steps.version.outputs.version }}
+            
+            ### 🚀 Features
+            - SOCKS5/HTTP/Mixed proxy support
+            - Modern web dashboard
+            - Proxy-only mode (no DNS hijacking)
+            - Subscription management
+            - Custom routing rules
+            
+            ### 📦 Installation
+            
+            **For OpenWrt users:**
+            1. Download the `.tar.gz` file
+            2. Extract to your OpenWrt source `package/` directory
+            3. Compile with `make package/luci-app-socks-clash/compile V=s`
+            
+            **Or use the pre-built package:**
+            ```bash
+            opkg install luci-app-socks-clash_*.ipk
+            ```
+            
+            ### 📋 Changelog
+            See [CHANGELOG.md](CHANGELOG.md) for details.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

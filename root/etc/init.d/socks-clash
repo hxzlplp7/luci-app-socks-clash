@@ -1,0 +1,148 @@
+#!/bin/sh /etc/rc.common
+# SocksClash init script
+
+START=99
+STOP=10
+
+USE_PROCD=1
+PROG=/etc/socks-clash/core/clash
+CONFIG_FILE=/etc/socks-clash/config/config.yaml
+
+get_config() {
+    config_load socks-clash
+    config_get_bool enabled config enable 0
+    config_get socks_port config socks_port 7891
+    config_get http_port config http_port 7890
+    config_get mixed_port config mixed_port 7893
+    config_get cn_port config cn_port 9090
+    config_get log_level config log_level info
+    config_get mode config mode rule
+    config_get allow_lan config allow_lan 1
+    config_get bind_address config bind_address '*'
+    config_get ipv6 config ipv6 0
+    config_get dashboard_password config dashboard_password ''
+    config_get socks_enabled config socks_enabled 1
+    config_get http_enabled config http_enabled 1
+    config_get mixed_enabled config mixed_enabled 0
+}
+
+generate_config() {
+    local config_dir="/etc/socks-clash/config"
+    local config_file="$config_dir/config.yaml"
+    
+    mkdir -p "$config_dir"
+    
+    # Get LAN IP
+    local lan_ip=$(uci get network.lan.ipaddr 2>/dev/null | awk -F'/' '{print $1}')
+    [ -z "$lan_ip" ] && lan_ip="0.0.0.0"
+    
+    cat > "$config_file" <<EOF
+# SocksClash Configuration
+# Auto-generated - do not edit directly
+
+mixed-port: ${mixed_port}
+port: ${http_port}
+socks-port: ${socks_port}
+allow-lan: $([ "$allow_lan" = "1" ] && echo "true" || echo "false")
+bind-address: "${bind_address}"
+mode: ${mode}
+log-level: ${log_level}
+ipv6: $([ "$ipv6" = "1" ] && echo "true" || echo "false")
+
+external-controller: 0.0.0.0:${cn_port}
+EOF
+
+    if [ -n "$dashboard_password" ]; then
+        echo "secret: \"${dashboard_password}\"" >> "$config_file"
+    fi
+
+    # Add DNS configuration (proxy only mode - no hijacking)
+    cat >> "$config_file" <<EOF
+
+dns:
+  enable: false
+
+profile:
+  store-selected: true
+  store-fake-ip: false
+
+# Proxies - Add your proxy servers here
+proxies: []
+
+# Proxy Groups
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - DIRECT
+      - REJECT
+
+# Rules
+rules:
+  - GEOIP,CN,DIRECT
+  - MATCH,PROXY
+EOF
+
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Config generated: $config_file" >> /tmp/socks-clash.log
+}
+
+check_core() {
+    if [ ! -x "$PROG" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Error: Clash core not found at $PROG" >> /tmp/socks-clash.log
+        return 1
+    fi
+    return 0
+}
+
+start_service() {
+    get_config
+    
+    if [ "$enabled" != "1" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') SocksClash is disabled" >> /tmp/socks-clash.log
+        return 0
+    fi
+    
+    if ! check_core; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Please download Clash core first" >> /tmp/socks-clash.log
+        return 1
+    fi
+    
+    # Generate configuration if not exists or needs update
+    generate_config
+    
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Starting SocksClash..." >> /tmp/socks-clash.log
+    
+    procd_open_instance
+    procd_set_param command "$PROG" -d /etc/socks-clash/config
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param file "$CONFIG_FILE"
+    procd_close_instance
+    
+    echo "$(date '+%Y-%m-%d %H:%M:%S') SocksClash started successfully" >> /tmp/socks-clash.log
+    
+    # Log proxy information
+    if [ "$socks_enabled" = "1" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') SOCKS5 Proxy: ${lan_ip}:${socks_port}" >> /tmp/socks-clash.log
+    fi
+    if [ "$http_enabled" = "1" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') HTTP Proxy: ${lan_ip}:${http_port}" >> /tmp/socks-clash.log
+    fi
+    if [ "$mixed_enabled" = "1" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') Mixed Proxy: ${lan_ip}:${mixed_port}" >> /tmp/socks-clash.log
+    fi
+}
+
+stop_service() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') Stopping SocksClash..." >> /tmp/socks-clash.log
+}
+
+reload_service() {
+    stop
+    start
+}
+
+service_triggers() {
+    procd_add_reload_trigger "socks-clash"
+}
