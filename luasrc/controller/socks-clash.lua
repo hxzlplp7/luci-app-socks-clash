@@ -55,7 +55,7 @@ end
 
 -- Helper functions
 local function is_running()
-    return sys.call("pidof clash >/dev/null") == 0
+    return sys.call("pgrep -f /etc/socks-clash/core/clash >/dev/null") == 0
 end
 
 local function get_lan_ip()

@@ -6,7 +6,7 @@ LUCI_DEPENDS:=+bash +curl +ca-bundle
 LUCI_PKGARCH:=all
 
 PKG_NAME:=luci-app-socks-clash
-PKG_VERSION:=1.0.1
+PKG_VERSION:=1.0.2
 PKG_RELEASE:=1
 PKG_MAINTAINER:=SocksClash <https://github.com/socks-clash>
 
