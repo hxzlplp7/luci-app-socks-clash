@@ -132,8 +132,26 @@ jobs:
           
           # Update and install feeds
           echo "Updating feeds..."
-          ./scripts/feeds update -a || true
-          ./scripts/feeds install luci-base || true
+          ./scripts/feeds update -a
+          
+          echo "Installing luci and dependencies..."
+          ./scripts/feeds install -a -p luci
+          ./scripts/feeds install luci-base
+          
+          # Build po2lmo first (it's part of luci-base host tools)
+          echo "Building po2lmo tool..."
+          make package/luci-base/host/compile V=s || true
+          
+          # Also try to build the po tool directly if available
+          if [ -d "package/feeds/luci/luci-base/src" ]; then
+            cd package/feeds/luci/luci-base/src
+            make po2lmo 2>/dev/null || true
+            if [ -f "po2lmo" ]; then
+              cp po2lmo $OLDPWD/staging_dir/host/bin/
+              export PATH="$OLDPWD/staging_dir/host/bin:$PATH"
+            fi
+            cd $OLDPWD
+          fi
           
           # Generate config
           make defconfig
