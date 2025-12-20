@@ -15,117 +15,8 @@ env:
   PACKAGE_NAME: luci-app-socks-clash
 
 jobs:
-  build:
-    name: Build ${{ matrix.arch }} Package
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - x86_64
-          - aarch64_cortex-a53
-          - aarch64_cortex-a72
-          - aarch64_generic
-          - arm_cortex-a7_neon-vfpv4
-          - arm_cortex-a9
-          - mipsel_24kc
-          - mips_24kc
-        include:
-          - arch: x86_64
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/x86/64/openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          - arch: aarch64_cortex-a53
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          - arch: aarch64_cortex-a72
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          - arch: aarch64_generic
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          - arch: arm_cortex-a7_neon-vfpv4
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ipq40xx/generic/openwrt-sdk-23.05.2-ipq40xx-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
-          - arch: arm_cortex-a9
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/bcm53xx/generic/openwrt-sdk-23.05.2-bcm53xx-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
-          - arch: mipsel_24kc
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ramips/mt7621/openwrt-sdk-23.05.2-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-          - arch: mips_24kc
-            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ath79/generic/openwrt-sdk-23.05.2-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION="dev"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3-distutils rsync unzip zlib1g-dev file wget
-
-      - name: Download SDK
-        run: |
-          wget -q ${{ matrix.sdk_url }} -O sdk.tar.xz
-          tar -xf sdk.tar.xz
-          mv openwrt-sdk-* sdk
-
-      - name: Setup package
-        run: |
-          mkdir -p sdk/package/${{ env.PACKAGE_NAME }}
-          cp -r luasrc sdk/package/${{ env.PACKAGE_NAME }}/
-          cp -r root sdk/package/${{ env.PACKAGE_NAME }}/
-          cp -r po sdk/package/${{ env.PACKAGE_NAME }}/
-          cp Makefile sdk/package/${{ env.PACKAGE_NAME }}/
-          
-          # Update version in Makefile
-          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=${{ steps.version.outputs.version }}/" sdk/package/${{ env.PACKAGE_NAME }}/Makefile
-
-      - name: Build package
-        run: |
-          cd sdk
-          
-          # Update feeds
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
-          
-          # Configure
-          make defconfig
-          
-          # Build the package
-          make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc) || make package/${{ env.PACKAGE_NAME }}/compile V=s -j1
-
-      - name: Collect IPK
-        run: |
-          mkdir -p output
-          find sdk/bin -name "${{ env.PACKAGE_NAME }}*.ipk" -exec cp {} output/ \;
-          
-          # Rename with arch suffix
-          for f in output/*.ipk; do
-            if [ -f "$f" ]; then
-              mv "$f" "${f%.ipk}_${{ matrix.arch }}.ipk"
-            fi
-          done
-          
-          ls -la output/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.PACKAGE_NAME }}-${{ matrix.arch }}
-          path: output/*.ipk
-          if-no-files-found: warn
-
-  # Build universal package (arch independent - all)
-  build-all:
-    name: Build Universal Package
+  build-source:
+    name: Build Source Package
     runs-on: ubuntu-latest
     
     steps:
@@ -144,33 +35,13 @@ jobs:
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential gettext
-
-      - name: Build LMO files
-        run: |
-          mkdir -p build/luci-i18n
-          
-          # Simple PO to LMO conversion (basic implementation)
-          # In production, use proper po2lmo from OpenWrt
-          for po in po/*/*.po; do
-            if [ -f "$po" ]; then
-              lang=$(basename $(dirname "$po"))
-              name=$(basename "$po" .po)
-              # Create placeholder LMO (real implementation needs po2lmo)
-              cp "$po" "build/${name}.${lang}.lmo"
-            fi
-          done
-
       - name: Create package archive
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           
           mkdir -p dist/${{ env.PACKAGE_NAME }}
           
-          # Copy all files
+          # Copy files
           cp -r luasrc dist/${{ env.PACKAGE_NAME }}/
           cp -r root dist/${{ env.PACKAGE_NAME }}/
           cp -r po dist/${{ env.PACKAGE_NAME }}/
@@ -197,11 +68,110 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
 
+  build-ipk:
+    name: Build IPK (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            target: x86/64
+            sdk_name: openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64
+          - arch: aarch64_generic
+            target: rockchip/armv8
+            sdk_name: openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="dev"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gawk gcc-multilib g++-multilib \
+            gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev
+
+      - name: Download and extract SDK
+        run: |
+          SDK_URL="https://downloads.openwrt.org/releases/23.05.2/targets/${{ matrix.target }}/${{ matrix.sdk_name }}.tar.xz"
+          echo "Downloading SDK from: $SDK_URL"
+          wget -q "$SDK_URL" -O sdk.tar.xz || {
+            echo "Failed to download SDK, trying alternative..."
+            exit 1
+          }
+          tar -xf sdk.tar.xz
+          mv ${{ matrix.sdk_name }} sdk
+
+      - name: Prepare package
+        run: |
+          mkdir -p sdk/package/${{ env.PACKAGE_NAME }}
+          cp -r luasrc sdk/package/${{ env.PACKAGE_NAME }}/
+          cp -r root sdk/package/${{ env.PACKAGE_NAME }}/
+          cp -r po sdk/package/${{ env.PACKAGE_NAME }}/
+          cp Makefile sdk/package/${{ env.PACKAGE_NAME }}/
+          
+          # Update version
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=${{ steps.version.outputs.version }}/" sdk/package/${{ env.PACKAGE_NAME }}/Makefile
+
+      - name: Build IPK
+        run: |
+          cd sdk
+          
+          # Update and install feeds
+          echo "Updating feeds..."
+          ./scripts/feeds update -a || true
+          ./scripts/feeds install luci-base || true
+          
+          # Generate config
+          make defconfig
+          
+          # Build package
+          echo "Building package..."
+          make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc) 2>&1 || \
+          make package/${{ env.PACKAGE_NAME }}/compile V=s -j1 2>&1
+
+      - name: Collect IPK files
+        run: |
+          mkdir -p output
+          find sdk/bin -name "*.ipk" | head -20
+          find sdk/bin -name "${{ env.PACKAGE_NAME }}*.ipk" -exec cp {} output/ \; || true
+          
+          # Also collect any luci i18n packages
+          find sdk/bin -name "luci-i18n-socks-clash*.ipk" -exec cp {} output/ \; || true
+          
+          # Rename with arch info
+          cd output
+          for f in *.ipk; do
+            [ -f "$f" ] && mv "$f" "${f%.ipk}_${{ matrix.arch }}.ipk"
+          done
+          
+          ls -la || echo "No IPK files found"
+
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}-${{ matrix.arch }}
+          path: output/*.ipk
+          if-no-files-found: warn
+
   release:
     name: Create Release
-    needs: [build, build-all]
+    needs: [build-source, build-ipk]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
+    if: startsWith(github.ref, 'refs/tags/v')
     
     permissions:
       contents: write
@@ -213,11 +183,7 @@ jobs:
       - name: Get version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          fi
+          VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
@@ -228,12 +194,10 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          find artifacts -name "*.ipk" -exec cp {} release/ \;
-          find artifacts -name "*.tar.gz" -exec cp {} release/ \;
-          find artifacts -name "*.zip" -exec cp {} release/ \;
+          find artifacts -type f \( -name "*.ipk" -o -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release/ \;
           ls -la release/
 
-      - name: Create/Update Release
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           name: SocksClash v${{ steps.version.outputs.version }}
@@ -244,41 +208,42 @@ jobs:
           body: |
             ## 🚀 SocksClash v${{ steps.version.outputs.version }}
             
-            ### ✨ Features
-            - **SOCKS5 Proxy** - Default port 7891
-            - **HTTP Proxy** - Default port 7890
-            - **Mixed Proxy** - Default port 7893 (SOCKS5 + HTTP)
-            - **Modern Web Dashboard** - Real-time monitoring
-            - **Subscription Management** - Auto-update support
-            - **Multi-Protocol** - SS/VMess/VLESS/Trojan/Hysteria/TUIC
-            - **Chinese Localization** - 完整中文汉化
+            **简介:** 一个简化的 OpenWrt 代理管理插件，专注于代理功能，不进行 DNS 劫持或透明代理。
             
-            ### 📦 Downloads
+            ### ✨ 功能特点
+            - **SOCKS5 代理** - 默认端口 7891
+            - **HTTP 代理** - 默认端口 7890
+            - **混合代理** - 默认端口 7893 (支持 SOCKS5 + HTTP)
+            - **现代 Web 仪表盘** - 实时监控、流量统计
+            - **订阅管理** - 支持自动更新
+            - **多协议支持** - SS/VMess/VLESS/Trojan/Hysteria/TUIC
+            - **中文汉化** - 完整中文界面
             
-            #### Pre-built IPK Packages
-            | Architecture | Download |
-            |--------------|----------|
-            | x86_64 | `luci-app-socks-clash_*_x86_64.ipk` |
-            | aarch64 (ARM64) | `luci-app-socks-clash_*_aarch64_*.ipk` |
-            | arm_cortex-a7 | `luci-app-socks-clash_*_arm_cortex-a7*.ipk` |
-            | mipsel_24kc | `luci-app-socks-clash_*_mipsel_24kc.ipk` |
-            | mips_24kc | `luci-app-socks-clash_*_mips_24kc.ipk` |
+            ### 📦 下载说明
             
-            #### Source Package
-            For manual compilation: `luci-app-socks-clash_*_all.tar.gz`
+            | 文件 | 说明 |
+            |------|------|
+            | `*_x86_64.ipk` | x86_64 架构 (软路由) |
+            | `*_aarch64_generic.ipk` | ARM64 架构 (树莓派等) |
+            | `*_all.tar.gz` | 源码包 (手动编译用) |
             
-            ### 🔧 Installation
+            ### 🔧 安装方法
+            
+            **方法一: 直接安装 IPK**
             ```bash
-            # Download the IPK for your architecture
             opkg install luci-app-socks-clash_*.ipk
+            ```
             
-            # Or compile from source
-            tar -xzf luci-app-socks-clash_*_all.tar.gz
-            cp -r luci-app-socks-clash /path/to/openwrt/package/
+            **方法二: 从源码编译**
+            ```bash
+            # 解压源码包到 OpenWrt 的 package 目录
+            tar -xzf luci-app-socks-clash_*_all.tar.gz -C /path/to/openwrt/package/
+            
+            # 编译
             make package/luci-app-socks-clash/compile V=s
             ```
             
-            ### 📋 Changelog
-            See [CHANGELOG.md](CHANGELOG.md) for details.
+            ### 🌐 使用方法
+            安装后访问: `http://路由器IP/cgi-bin/luci/admin/services/socks-clash`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
