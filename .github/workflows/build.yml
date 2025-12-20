@@ -70,7 +70,7 @@ jobs:
 
   build-ipk:
     name: Build IPK (${{ matrix.arch }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -102,7 +102,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential gawk gcc-multilib g++-multilib \
-            gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev
+            gettext git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev
 
       - name: Download and extract SDK
         run: |
