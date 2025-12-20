@@ -1,4 +1,4 @@
-<%# SocksClash Log Page -%>
+﻿<%# SocksClash Log Page -%>
 
     <%+header%>
 
@@ -301,17 +301,17 @@
                 <div class="sc-log-title">
                     <div class="sc-log-icon">📜</div>
                     <h2>
-                        <%:SocksClash Logs%>
+                        SocksClash 日志
                     </h2>
                 </div>
                 <div class="sc-log-controls">
                     <button class="sc-log-btn sc-log-btn-primary" onclick="refreshLog()">
                         <span>🔄</span>
-                        <%:Refresh%>
+                        刷新
                     </button>
                     <button class="sc-log-btn sc-log-btn-danger" onclick="clearLog()">
                         <span>🗑️</span>
-                        <%:Clear%>
+                        清空
                     </button>
                     <button class="sc-log-btn sc-log-btn-outline" onclick="downloadLog()">
                         <span>⬇️</span>
@@ -324,29 +324,29 @@
                 <div class="sc-log-card-header">
                     <div class="sc-log-filters">
                         <span class="sc-log-filter-label">
-                            <%:Filter:%>
+                            过滤：
                         </span>
                         <select class="sc-log-filter-select" id="level-filter" onchange="filterLogs()">
                             <option value="all">
-                                <%:All Levels%>
+                                所有级别
                             </option>
                             <option value="error">
-                                <%:Error%>
+                                错误
                             </option>
                             <option value="warning">
-                                <%:Warning%>
+                                警告
                             </option>
                             <option value="info">
-                                <%:Info%>
+                                信息
                             </option>
                             <option value="debug">
-                                <%:Debug%>
+                                调试
                             </option>
                         </select>
                     </div>
                     <div class="sc-log-search">
                         <span>🔍</span>
-                        <input type="text" id="log-search" placeholder="<%:Search logs...%>" oninput="filterLogs()">
+                        <input type="text" id="log-search" placeholder="搜索日志..." oninput="filterLogs()">
                     </div>
                 </div>
 
@@ -354,18 +354,18 @@
                     <div class="sc-log-empty">
                         <div class="sc-log-empty-icon">📋</div>
                         <div>
-                            <%:Loading logs...%>
+                            加载日志中...
                         </div>
                     </div>
                 </div>
 
                 <div class="sc-log-footer">
                     <div class="sc-log-stats">
-                        <%:Total lines:%> <span id="log-count">0</span>
+                        总行数： <span id="log-count">0</span>
                     </div>
                     <div class="sc-auto-scroll-toggle">
                         <span>
-                            <%:Auto Scroll%>
+                            自动滚动
                         </span>
                         <div class="sc-toggle active" id="auto-scroll-toggle" onclick="toggleAutoScroll()"></div>
                     </div>
@@ -407,7 +407,7 @@
                 var container = document.getElementById('log-content');
 
                 if (logs.length === 0) {
-                    container.innerHTML = '<div class="sc-log-empty"><div class="sc-log-empty-icon">📋</div><div><%:No logs available%></div></div>';
+                    container.innerHTML = '<div class="sc-log-empty"><div class="sc-log-empty-icon">📋</div><div>暂无日志</div></div>';
                     document.getElementById('log-count').textContent = '0';
                     return;
                 }
@@ -459,7 +459,7 @@
             }
 
             function clearLog() {
-                if (confirm('<%:Are you sure you want to clear all logs?%>')) {
+                if (confirm('确定要清空所有日志吗？')) {
                     XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/clear_log")%>', null, function (xhr, data) {
                         allLogs = [];
                         renderLogs([]);

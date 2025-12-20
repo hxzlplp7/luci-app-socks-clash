@@ -1,4 +1,4 @@
-<%# Proxy Usage Instructions Template -%>
+﻿<%# Proxy Usage Instructions Template -%>
 
     <div class="cbi-section">
         <style>
@@ -92,12 +92,12 @@
         <div class="sc-usage-container">
             <div class="sc-usage-title">
                 <span class="sc-usage-title-icon">📖</span>
-                <%:How to Use Proxy%>
+                如何使用代理
             </div>
 
             <div class="sc-usage-grid">
                 <div class="sc-usage-card">
-                    <h4>🪟 <%:Windows System Proxy%>
+                    <h4>🪟 Windows 系统代理
                     </h4>
                     <pre>Settings → Network & Internet → Proxy
 Manual proxy setup:
@@ -109,7 +109,7 @@ Manual proxy setup:
                 </div>
 
                 <div class="sc-usage-card">
-                    <h4>🍎 <%:macOS System Proxy%>
+                    <h4>🍎 macOS 系统代理
                     </h4>
                     <pre>System Preferences → Network → Advanced → Proxies
 Web Proxy (HTTP): [Router IP]:7890
@@ -131,7 +131,7 @@ Port: 7890</pre>
                 </div>
 
                 <div class="sc-usage-card">
-                    <h4>🌐 <%:Browser Extension%>
+                    <h4>🌐 浏览器扩展
                     </h4>
                     <pre>SwitchyOmega / FoxyProxy:
   SOCKS5: [Router IP]:7891
@@ -142,7 +142,7 @@ Port: 7890</pre>
                 </div>
 
                 <div class="sc-usage-card">
-                    <h4>💻 <%:Command Line (curl)%>
+                    <h4>💻 命令行 (curl)
                     </h4>
                     <pre># HTTP Proxy
 export http_proxy=http://[Router IP]:7890
@@ -153,7 +153,7 @@ export ALL_PROXY=socks5://[Router IP]:7891</pre>
                 </div>
 
                 <div class="sc-usage-card">
-                    <h4>🐳 <%:Docker%>
+                    <h4>🐳 Docker
                     </h4>
                     <pre># ~/.docker/config.json
 {
@@ -171,7 +171,7 @@ export ALL_PROXY=socks5://[Router IP]:7891</pre>
                 <span class="sc-usage-note-icon">💡</span>
                 <div class="sc-usage-note-content">
                     <strong>
-                        <%:Tip:%>
+                        提示：
                     </strong>
                     <%:Replace [Router IP] with your actual router IP address (usually 192.168.1.1 or similar). The
                         mixed port (default 7893) supports both HTTP and SOCKS5 protocols.%>

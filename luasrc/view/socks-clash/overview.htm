@@ -1,4 +1,4 @@
-<%#
+﻿<%#
  SocksClash Overview Page
  Modern and beautiful dashboard
 -%>
@@ -615,13 +615,13 @@
         </div>
         <div class="sc-controls">
             <button id="btn-start" class="sc-btn sc-btn-success" onclick="startService()">
-                <span>▶</span> <%:Start%>
+                <span>▶</span> 启动
             </button>
             <button id="btn-stop" class="sc-btn sc-btn-danger" onclick="stopService()">
-                <span>■</span> <%:Stop%>
+                <span>■</span> 停止
             </button>
             <button id="btn-restart" class="sc-btn sc-btn-outline" onclick="restartService()">
-                <span>↻</span> <%:Restart%>
+                <span>↻</span> 重启
             </button>
         </div>
     </div>
@@ -633,9 +633,9 @@
             <div class="sc-card-header">
                 <div class="sc-card-title">
                     <div class="sc-card-title-icon" style="background: #e0e7ff; color: var(--sc-primary);">📊</div>
-                    <%:Service Status%>
+                    服务状态
                 </div>
-                <span id="status-badge" class="sc-badge sc-badge-danger"><%:Stopped%></span>
+                <span id="status-badge" class="sc-badge sc-badge-danger">已停止</span>
             </div>
             <div class="sc-card-body">
                 <div class="sc-status-indicator">
@@ -643,18 +643,18 @@
                         <span id="status-icon">✕</span>
                     </div>
                     <div class="sc-status-info">
-                        <h3 id="status-text"><%:Stopped%></h3>
-                        <p id="status-desc"><%:SocksClash is not running%></p>
+                        <h3 id="status-text">已停止</h3>
+                        <p id="status-desc">SocksClash 未运行</p>
                     </div>
                 </div>
                 <div class="sc-stats">
                     <div class="sc-stat">
                         <div class="sc-stat-value" id="stat-uptime">--</div>
-                        <div class="sc-stat-label"><%:Uptime%></div>
+                        <div class="sc-stat-label">运行时间</div>
                     </div>
                     <div class="sc-stat">
                         <div class="sc-stat-value" id="stat-mode">--</div>
-                        <div class="sc-stat-label"><%:Mode%></div>
+                        <div class="sc-stat-label">模式</div>
                     </div>
                     <div class="sc-stat">
                         <div class="sc-stat-value" id="stat-version">--</div>
@@ -662,7 +662,7 @@
                     </div>
                     <div class="sc-stat">
                         <div class="sc-stat-value" id="stat-connections">0</div>
-                        <div class="sc-stat-label"><%:Connections%></div>
+                        <div class="sc-stat-label">连接数</div>
                     </div>
                 </div>
             </div>
@@ -673,7 +673,7 @@
             <div class="sc-card-header">
                 <div class="sc-card-title">
                     <div class="sc-card-title-icon" style="background: #fef3c7; color: var(--sc-warning);">🔗</div>
-                    <%:Proxy Addresses%>
+                    代理地址
                 </div>
             </div>
             <div class="sc-card-body">
@@ -717,14 +717,14 @@
             <div class="sc-card-header">
                 <div class="sc-card-title">
                     <div class="sc-card-title-icon" style="background: #dcfce7; color: var(--sc-success);">📈</div>
-                    <%:Traffic%>
+                    流量
                 </div>
             </div>
             <div class="sc-card-body">
                 <div class="sc-traffic-item">
                     <div class="sc-traffic-icon upload">↑</div>
                     <div class="sc-traffic-info">
-                        <div class="sc-traffic-label"><%:Upload%></div>
+                        <div class="sc-traffic-label">上传</div>
                         <div class="sc-traffic-value" id="traffic-up">0 B</div>
                     </div>
                     <div class="sc-traffic-speed" id="speed-up">0 B/s</div>
@@ -732,7 +732,7 @@
                 <div class="sc-traffic-item">
                     <div class="sc-traffic-icon download">↓</div>
                     <div class="sc-traffic-info">
-                        <div class="sc-traffic-label"><%:Download%></div>
+                        <div class="sc-traffic-label">下载</div>
                         <div class="sc-traffic-value" id="traffic-down">0 B</div>
                     </div>
                     <div class="sc-traffic-speed" id="speed-down">0 B/s</div>
@@ -745,14 +745,14 @@
             <div class="sc-card-header">
                 <div class="sc-card-title">
                     <div class="sc-card-title-icon" style="background: #e0e7ff; color: var(--sc-primary);">⚙️</div>
-                    <%:Proxy Mode%>
+                    代理模式
                 </div>
             </div>
             <div class="sc-card-body">
                 <div class="sc-mode-selector">
-                    <button class="sc-mode-btn" data-mode="rule" onclick="switchMode('rule')"><%:Rule%></button>
-                    <button class="sc-mode-btn" data-mode="global" onclick="switchMode('global')"><%:Global%></button>
-                    <button class="sc-mode-btn" data-mode="direct" onclick="switchMode('direct')"><%:Direct%></button>
+                    <button class="sc-mode-btn" data-mode="rule" onclick="switchMode('rule')">规则</button>
+                    <button class="sc-mode-btn" data-mode="global" onclick="switchMode('global')">全局</button>
+                    <button class="sc-mode-btn" data-mode="direct" onclick="switchMode('direct')">直连</button>
                 </div>
             </div>
         </div>
@@ -763,14 +763,14 @@
         <div class="sc-card-header">
             <div class="sc-card-title">
                 <div class="sc-card-title-icon" style="background: #fce7f3; color: #ec4899;">🚀</div>
-                <%:Quick Actions%>
+                快捷操作
             </div>
         </div>
         <div class="sc-card-body">
             <div class="sc-quick-actions">
                 <button class="sc-action-btn" onclick="openDashboard()">
                     <span class="sc-action-icon">📊</span>
-                    <span class="sc-action-label"><%:Dashboard%></span>
+                    <span class="sc-action-label">仪表盘</span>
                 </button>
                 <button class="sc-action-btn" onclick="location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/settings")%>'">
                     <span class="sc-action-icon">⚙️</span>
@@ -790,7 +790,7 @@
                 </button>
                 <button class="sc-action-btn" onclick="closeAllConnections()">
                     <span class="sc-action-icon">🔌</span>
-                    <span class="sc-action-label"><%:Close Connections%></span>
+                    <span class="sc-action-label">关闭连接</span>
                 </button>
             </div>
         </div>
@@ -858,10 +858,10 @@ function updateStatus() {
                 statusCard.className = 'sc-card sc-status-card running';
                 statusDot.className = 'sc-status-dot running';
                 statusIcon.textContent = '✓';
-                statusText.textContent = '<%:Running%>';
-                statusDesc.textContent = '<%:SocksClash is active and running%>';
+                statusText.textContent = '运行中';
+                statusDesc.textContent = 'SocksClash 正在运行';
                 statusBadge.className = 'sc-badge sc-badge-success';
-                statusBadge.textContent = '<%:Running%>';
+                statusBadge.textContent = '运行中';
                 
                 document.getElementById('btn-start').disabled = true;
                 document.getElementById('btn-stop').disabled = false;
@@ -869,10 +869,10 @@ function updateStatus() {
                 statusCard.className = 'sc-card sc-status-card stopped';
                 statusDot.className = 'sc-status-dot stopped';
                 statusIcon.textContent = '✕';
-                statusText.textContent = '<%:Stopped%>';
-                statusDesc.textContent = '<%:SocksClash is not running%>';
+                statusText.textContent = '已停止';
+                statusDesc.textContent = 'SocksClash 未运行';
                 statusBadge.className = 'sc-badge sc-badge-danger';
-                statusBadge.textContent = '<%:Stopped%>';
+                statusBadge.textContent = '已停止';
                 
                 document.getElementById('btn-start').disabled = false;
                 document.getElementById('btn-stop').disabled = true;
@@ -974,3 +974,4 @@ window.addEventListener('beforeunload', function() {
 </script>
 
 <%+footer%>
+

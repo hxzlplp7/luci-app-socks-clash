@@ -10,33 +10,33 @@ function index()
     local page
 
     -- Main entry
-    page = entry({"admin", "services", "socks-clash"}, alias("admin", "services", "socks-clash", "overview"), _("SocksClash"), 50)
+    page = entry({"admin", "services", "socks-clash"}, alias("admin", "services", "socks-clash", "overview"), "SocksClash", 50)
     page.dependent = true
     page.acl_depends = { "luci-app-socks-clash" }
 
     -- Overview page
-    entry({"admin", "services", "socks-clash", "overview"}, template("socks-clash/overview"), _("Overview"), 10).leaf = true
+    entry({"admin", "services", "socks-clash", "overview"}, template("socks-clash/overview"), "概览", 10).leaf = true
     
     -- Dashboard page
-    entry({"admin", "services", "socks-clash", "dashboard"}, template("socks-clash/dashboard"), _("Dashboard"), 15).leaf = true
+    entry({"admin", "services", "socks-clash", "dashboard"}, template("socks-clash/dashboard"), "控制面板", 15).leaf = true
     
     -- Settings page
-    entry({"admin", "services", "socks-clash", "settings"}, cbi("socks-clash/settings"), _("Settings"), 20).leaf = true
+    entry({"admin", "services", "socks-clash", "settings"}, cbi("socks-clash/settings"), "设置", 20).leaf = true
     
     -- Proxy Settings
-    entry({"admin", "services", "socks-clash", "proxy"}, cbi("socks-clash/proxy"), _("Proxy Settings"), 30).leaf = true
+    entry({"admin", "services", "socks-clash", "proxy"}, cbi("socks-clash/proxy"), "代理配置", 30).leaf = true
     
     -- Servers page
-    entry({"admin", "services", "socks-clash", "servers"}, cbi("socks-clash/servers"), _("Servers"), 40).leaf = true
+    entry({"admin", "services", "socks-clash", "servers"}, cbi("socks-clash/servers"), "服务器", 40).leaf = true
     
     -- Rules page
-    entry({"admin", "services", "socks-clash", "rules"}, cbi("socks-clash/rules"), _("Rules"), 50).leaf = true
+    entry({"admin", "services", "socks-clash", "rules"}, cbi("socks-clash/rules"), "规则", 50).leaf = true
     
     -- Subscribe page
-    entry({"admin", "services", "socks-clash", "subscribe"}, cbi("socks-clash/subscribe"), _("Subscribe"), 55).leaf = true
+    entry({"admin", "services", "socks-clash", "subscribe"}, cbi("socks-clash/subscribe"), "订阅", 55).leaf = true
     
     -- Log page
-    entry({"admin", "services", "socks-clash", "log"}, template("socks-clash/log"), _("Logs"), 60).leaf = true
+    entry({"admin", "services", "socks-clash", "log"}, template("socks-clash/log"), "日志", 60).leaf = true
     
     -- API endpoints
     entry({"admin", "services", "socks-clash", "status"}, call("action_status")).leaf = true
@@ -70,236 +70,133 @@ local function get_cn_port()
     return uci:get("socks-clash", "config", "cn_port") or "9090"
 end
 
-local function get_secret()
-    return uci:get("socks-clash", "config", "dashboard_password") or ""
-end
-
-local function get_core_version()
-    local core_path = uci:get("socks-clash", "config", "core_path") or "/etc/socks-clash/core/clash"
-    if fs.access(core_path) then
-        local version = sys.exec(core_path .. " -v 2>/dev/null | awk '{print $2}' | head -1 | tr -d '\\n'")
-        return version ~= "" and version or "Unknown"
-    end
-    return "Not installed"
-end
-
-local function api_request(path, method, data)
-    local ip = get_lan_ip()
-    local port = get_cn_port()
-    local secret = get_secret()
-    
-    local auth_header = ""
-    if secret and secret ~= "" then
-        auth_header = string.format('-H "Authorization: Bearer %s"', secret)
-    end
-    
-    local cmd
-    if method == "GET" then
-        cmd = string.format('curl -sL -m 3 %s "http://%s:%s%s"', auth_header, ip, port, path)
-    elseif method == "POST" then
-        cmd = string.format('curl -sL -m 3 -X POST %s -H "Content-Type: application/json" -d \'%s\' "http://%s:%s%s"', 
-            auth_header, data or "{}", ip, port, path)
-    elseif method == "DELETE" then
-        cmd = string.format('curl -sL -m 3 -X DELETE %s "http://%s:%s%s"', auth_header, ip, port, path)
-    end
-    
-    return sys.exec(cmd)
-end
-
--- API handlers
+-- API Actions
 function action_status()
     local running = is_running()
-    local enabled = uci:get("socks-clash", "config", "enable") == "1"
+    local lan_ip = get_lan_ip()
+    local cn_port = get_cn_port()
     local socks_port = uci:get("socks-clash", "config", "socks_port") or "7891"
     local http_port = uci:get("socks-clash", "config", "http_port") or "7890"
     local mixed_port = uci:get("socks-clash", "config", "mixed_port") or "7893"
-    local cn_port = get_cn_port()
-    local lan_ip = get_lan_ip()
-    local core_version = get_core_version()
+    local mode = uci:get("socks-clash", "config", "mode") or "rule"
     
-    local traffic = {}
-    local mode = "unknown"
-    
-    if running then
-        local traffic_data = api_request("/traffic", "GET")
-        if traffic_data and traffic_data ~= "" then
-            local t = json.parse(traffic_data)
-            if t then
-                traffic = t
-            end
-        end
-        
-        local config_data = api_request("/configs", "GET")
-        if config_data and config_data ~= "" then
-            local c = json.parse(config_data)
-            if c and c.mode then
-                mode = c.mode
-            end
-        end
-    end
-    
-    http.prepare_content("application/json")
-    http.write_json({
+    local data = {
         running = running,
-        enabled = enabled,
+        lan_ip = lan_ip,
+        cn_port = cn_port,
         socks_port = socks_port,
         http_port = http_port,
         mixed_port = mixed_port,
-        cn_port = cn_port,
-        lan_ip = lan_ip,
-        core_version = core_version,
-        mode = mode,
-        traffic = traffic,
-        uptime = running and sys.exec("ps -o etime= -p $(pidof clash) 2>/dev/null | tr -d ' \\n'") or ""
-    })
+        mode = mode
+    }
+    
+    http.prepare_content("application/json")
+    http.write_json(data)
 end
 
 function action_start()
-    uci:set("socks-clash", "config", "enable", "1")
-    uci:commit("socks-clash")
-    sys.call("/etc/init.d/socks-clash start >/dev/null 2>&1 &")
-    
+    sys.call("/etc/init.d/socks-clash start >/dev/null 2>&1")
     http.prepare_content("application/json")
-    http.write_json({status = "success", message = "Starting SocksClash..."})
+    http.write_json({success = true})
 end
 
 function action_stop()
-    uci:set("socks-clash", "config", "enable", "0")
-    uci:commit("socks-clash")
     sys.call("/etc/init.d/socks-clash stop >/dev/null 2>&1")
-    
     http.prepare_content("application/json")
-    http.write_json({status = "success", message = "SocksClash stopped"})
+    http.write_json({success = true})
 end
 
 function action_restart()
-    sys.call("/etc/init.d/socks-clash restart >/dev/null 2>&1 &")
-    
+    sys.call("/etc/init.d/socks-clash restart >/dev/null 2>&1")
     http.prepare_content("application/json")
-    http.write_json({status = "success", message = "Restarting SocksClash..."})
+    http.write_json({success = true})
 end
 
 function action_get_log()
-    local log = ""
-    local log_path = "/tmp/socks-clash.log"
+    local log_file = "/tmp/socks-clash.log"
+    local lines = tonumber(http.formvalue("lines")) or 100
     
-    if fs.access(log_path) then
-        log = sys.exec("tail -n 100 " .. log_path .. " 2>/dev/null")
+    local content = ""
+    if fs.access(log_file) then
+        content = sys.exec("tail -n " .. lines .. " " .. log_file .. " 2>/dev/null")
     end
     
-    http.prepare_content("application/json")
-    http.write_json({log = log})
+    http.prepare_content("text/plain")
+    http.write(content)
 end
 
 function action_clear_log()
     sys.call("echo '' > /tmp/socks-clash.log 2>/dev/null")
-    
     http.prepare_content("application/json")
-    http.write_json({status = "success"})
+    http.write_json({success = true})
 end
 
 function action_get_connections()
-    local data = {}
-    
-    if is_running() then
-        local result = api_request("/connections", "GET")
-        if result and result ~= "" then
-            local parsed = json.parse(result)
-            if parsed then
-                data = parsed
-            end
-        end
-    end
+    local cn_port = get_cn_port()
+    local result = sys.exec("curl -s http://127.0.0.1:" .. cn_port .. "/connections 2>/dev/null")
     
     http.prepare_content("application/json")
-    http.write_json(data)
+    if result and result ~= "" then
+        http.write(result)
+    else
+        http.write_json({connections = {}})
+    end
 end
 
 function action_close_connections()
-    if is_running() then
-        api_request("/connections", "DELETE")
-    end
-    
+    local cn_port = get_cn_port()
+    sys.call("curl -X DELETE http://127.0.0.1:" .. cn_port .. "/connections >/dev/null 2>&1")
     http.prepare_content("application/json")
-    http.write_json({status = "success"})
+    http.write_json({success = true})
 end
 
 function action_get_traffic()
-    local data = {up = 0, down = 0}
-    
-    if is_running() then
-        local result = api_request("/traffic", "GET")
-        if result and result ~= "" then
-            local parsed = json.parse(result)
-            if parsed then
-                data = parsed
-            end
-        end
-    end
+    local cn_port = get_cn_port()
+    local result = sys.exec("curl -s http://127.0.0.1:" .. cn_port .. "/traffic 2>/dev/null")
     
     http.prepare_content("application/json")
-    http.write_json(data)
+    if result and result ~= "" then
+        http.write(result)
+    else
+        http.write_json({up = 0, down = 0})
+    end
+end
+
+function action_download_core()
+    sys.call("/usr/share/socks-clash/download_core.sh >/tmp/socks-clash.log 2>&1 &")
+    http.prepare_content("application/json")
+    http.write_json({success = true, message = "下载任务已启动"})
 end
 
 function action_check_core()
-    local core_path = uci:get("socks-clash", "config", "core_path") or "/etc/socks-clash/core/clash"
+    local core_path = "/etc/socks-clash/core/clash"
     local exists = fs.access(core_path)
-    local version = "Not installed"
+    local version = ""
     
     if exists then
-        version = sys.exec(core_path .. " -v 2>/dev/null | awk '{print $2}' | head -1 | tr -d '\\n'")
-        if version == "" then
-            version = "Unknown"
-        end
+        version = sys.exec(core_path .. " -v 2>/dev/null | head -1 | tr -d '\\n'")
     end
     
     http.prepare_content("application/json")
     http.write_json({
         exists = exists,
-        version = version,
-        path = core_path
-    })
-end
-
-function action_download_core()
-    local arch = sys.exec("uname -m | tr -d '\\n'")
-    
-    http.prepare_content("application/json")
-    
-    -- Download core in background
-    sys.call("/usr/share/socks-clash/download_core.sh >/dev/null 2>&1 &")
-    
-    http.write_json({
-        status = "success",
-        message = "Core download started",
-        arch = arch
+        version = version
     })
 end
 
 function action_upload_config()
-    local file = http.formvalue("config_file")
-    
-    if not file then
-        http.prepare_content("application/json")
-        http.write_json({status = "error", message = "No file provided"})
-        return
+    local file = http.formvalue("file")
+    if file then
+        local config_path = "/etc/socks-clash/config/config.yaml"
+        local f = io.open(config_path, "w")
+        if f then
+            f:write(file)
+            f:close()
+            http.prepare_content("application/json")
+            http.write_json({success = true})
+            return
+        end
     end
-    
-    local config_dir = "/etc/socks-clash/config"
-    sys.call("mkdir -p " .. config_dir)
-    
-    local filename = http.formvalue("filename") or "uploaded_config.yaml"
-    local filepath = config_dir .. "/" .. filename
-    
-    local f = io.open(filepath, "w")
-    if f then
-        f:write(file)
-        f:close()
-        
-        http.prepare_content("application/json")
-        http.write_json({status = "success", message = "Config uploaded", path = filepath})
-    else
-        http.prepare_content("application/json")
-        http.write_json({status = "error", message = "Failed to save config"})
-    end
+    http.prepare_content("application/json")
+    http.write_json({success = false, message = "上传失败"})
 end
