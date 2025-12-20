@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build IPK Package
 
 on:
   push:
@@ -11,19 +11,47 @@ on:
         required: false
         default: ''
 
+env:
+  PACKAGE_NAME: luci-app-socks-clash
+
 jobs:
   build:
+    name: Build ${{ matrix.arch }} Package
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+          - aarch64_cortex-a53
+          - aarch64_cortex-a72
+          - aarch64_generic
+          - arm_cortex-a7_neon-vfpv4
+          - arm_cortex-a9
+          - mipsel_24kc
+          - mips_24kc
+        include:
+          - arch: x86_64
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/x86/64/openwrt-sdk-23.05.2-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - arch: aarch64_cortex-a53
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - arch: aarch64_cortex-a72
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - arch: aarch64_generic
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/rockchip/armv8/openwrt-sdk-23.05.2-rockchip-armv8_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - arch: arm_cortex-a7_neon-vfpv4
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ipq40xx/generic/openwrt-sdk-23.05.2-ipq40xx-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+          - arch: arm_cortex-a9
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/bcm53xx/generic/openwrt-sdk-23.05.2-bcm53xx-generic_gcc-12.3.0_musl_eabi.Linux-x86_64.tar.xz
+          - arch: mipsel_24kc
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ramips/mt7621/openwrt-sdk-23.05.2-ramips-mt7621_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+          - arch: mips_24kc
+            sdk_url: https://downloads.openwrt.org/releases/23.05.2/targets/ath79/generic/openwrt-sdk-23.05.2-ath79-generic_gcc-12.3.0_musl.Linux-x86_64.tar.xz
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Setup dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gettext
-          
+
       - name: Get version
         id: version
         run: |
@@ -35,61 +63,143 @@ jobs:
             VERSION="dev"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $VERSION"
-          
-      - name: Update version in Makefile
+
+      - name: Install dependencies
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" Makefile
-          
-      - name: Build translation files
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang flex bison g++ gawk \
+            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
+            python3-distutils rsync unzip zlib1g-dev file wget
+
+      - name: Download SDK
         run: |
-          mkdir -p build
+          wget -q ${{ matrix.sdk_url }} -O sdk.tar.xz
+          tar -xf sdk.tar.xz
+          mv openwrt-sdk-* sdk
+
+      - name: Setup package
+        run: |
+          mkdir -p sdk/package/${{ env.PACKAGE_NAME }}
+          cp -r luasrc sdk/package/${{ env.PACKAGE_NAME }}/
+          cp -r root sdk/package/${{ env.PACKAGE_NAME }}/
+          cp -r po sdk/package/${{ env.PACKAGE_NAME }}/
+          cp Makefile sdk/package/${{ env.PACKAGE_NAME }}/
+          
+          # Update version in Makefile
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=${{ steps.version.outputs.version }}/" sdk/package/${{ env.PACKAGE_NAME }}/Makefile
+
+      - name: Build package
+        run: |
+          cd sdk
+          
+          # Update feeds
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          
+          # Configure
+          make defconfig
+          
+          # Build the package
+          make package/${{ env.PACKAGE_NAME }}/compile V=s -j$(nproc) || make package/${{ env.PACKAGE_NAME }}/compile V=s -j1
+
+      - name: Collect IPK
+        run: |
+          mkdir -p output
+          find sdk/bin -name "${{ env.PACKAGE_NAME }}*.ipk" -exec cp {} output/ \;
+          
+          # Rename with arch suffix
+          for f in output/*.ipk; do
+            if [ -f "$f" ]; then
+              mv "$f" "${f%.ipk}_${{ matrix.arch }}.ipk"
+            fi
+          done
+          
+          ls -la output/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}-${{ matrix.arch }}
+          path: output/*.ipk
+          if-no-files-found: warn
+
+  # Build universal package (arch independent - all)
+  build-all:
+    name: Build Universal Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="dev"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential gettext
+
+      - name: Build LMO files
+        run: |
+          mkdir -p build/luci-i18n
+          
+          # Simple PO to LMO conversion (basic implementation)
+          # In production, use proper po2lmo from OpenWrt
           for po in po/*/*.po; do
             if [ -f "$po" ]; then
               lang=$(basename $(dirname "$po"))
               name=$(basename "$po" .po)
-              mkdir -p build/i18n
-              # Convert PO to LMO format (simplified - just copy for now)
-              echo "Processing: $po -> ${name}.${lang}.lmo"
-              # In real build, use po2lmo tool from OpenWrt SDK
+              # Create placeholder LMO (real implementation needs po2lmo)
+              cp "$po" "build/${name}.${lang}.lmo"
             fi
           done
-          
+
       - name: Create package archive
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          PKG_NAME="luci-app-socks-clash"
           
-          # Create package directory
-          mkdir -p dist/${PKG_NAME}
+          mkdir -p dist/${{ env.PACKAGE_NAME }}
           
-          # Copy files
-          cp -r luasrc dist/${PKG_NAME}/
-          cp -r root dist/${PKG_NAME}/
-          cp -r po dist/${PKG_NAME}/
-          cp Makefile dist/${PKG_NAME}/
-          cp README.md dist/${PKG_NAME}/
-          cp LICENSE dist/${PKG_NAME}/
+          # Copy all files
+          cp -r luasrc dist/${{ env.PACKAGE_NAME }}/
+          cp -r root dist/${{ env.PACKAGE_NAME }}/
+          cp -r po dist/${{ env.PACKAGE_NAME }}/
+          cp Makefile dist/${{ env.PACKAGE_NAME }}/
+          cp README.md dist/${{ env.PACKAGE_NAME }}/
+          cp LICENSE dist/${{ env.PACKAGE_NAME }}/
+          cp CHANGELOG.md dist/${{ env.PACKAGE_NAME }}/
           
-          # Create archive
+          # Update version
+          sed -i "s/PKG_VERSION:=.*/PKG_VERSION:=$VERSION/" dist/${{ env.PACKAGE_NAME }}/Makefile
+          
+          # Create archives
           cd dist
-          tar -czvf ${PKG_NAME}_${VERSION}.tar.gz ${PKG_NAME}
+          tar -czvf ${{ env.PACKAGE_NAME }}_${VERSION}_all.tar.gz ${{ env.PACKAGE_NAME }}
+          zip -r ${{ env.PACKAGE_NAME }}_${VERSION}_all.zip ${{ env.PACKAGE_NAME }}
           
-          # Create zip for easy download
-          zip -r ${PKG_NAME}_${VERSION}.zip ${PKG_NAME}
-          
-          echo "Package created successfully"
           ls -la
-          
-      - name: Upload artifact
+
+      - name: Upload source package
         uses: actions/upload-artifact@v4
         with:
-          name: luci-app-socks-clash-${{ steps.version.outputs.version }}
-          path: dist/luci-app-socks-clash_*.tar.gz
-          
+          name: ${{ env.PACKAGE_NAME }}-source
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
   release:
-    needs: build
+    name: Create Release
+    needs: [build, build-all]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.version != ''
     
@@ -97,9 +207,9 @@ jobs:
       contents: write
       
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Get version
         id: version
         run: |
@@ -109,58 +219,63 @@ jobs:
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-      - name: Download artifact
+
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: luci-app-socks-clash-${{ steps.version.outputs.version }}
-          path: ./release
-          
-      - name: Create release archive
+          path: artifacts
+
+      - name: Prepare release files
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          cd release
-          
-          # Extract and repackage
-          tar -xzf luci-app-socks-clash_${VERSION}.tar.gz
-          
-          # Create final packages
-          tar -czvf luci-app-socks-clash_${VERSION}.tar.gz luci-app-socks-clash
-          zip -r luci-app-socks-clash_${VERSION}.zip luci-app-socks-clash
-          
-          ls -la
-          
-      - name: Create GitHub Release
+          mkdir -p release
+          find artifacts -name "*.ipk" -exec cp {} release/ \;
+          find artifacts -name "*.tar.gz" -exec cp {} release/ \;
+          find artifacts -name "*.zip" -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Create/Update Release
         uses: softprops/action-gh-release@v1
         with:
           name: SocksClash v${{ steps.version.outputs.version }}
           tag_name: v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
-          generate_release_notes: true
-          files: |
-            release/luci-app-socks-clash_${{ steps.version.outputs.version }}.tar.gz
-            release/luci-app-socks-clash_${{ steps.version.outputs.version }}.zip
+          files: release/*
           body: |
-            ## SocksClash v${{ steps.version.outputs.version }}
+            ## 🚀 SocksClash v${{ steps.version.outputs.version }}
             
-            ### 🚀 Features
-            - SOCKS5/HTTP/Mixed proxy support
-            - Modern web dashboard
-            - Proxy-only mode (no DNS hijacking)
-            - Subscription management
-            - Custom routing rules
+            ### ✨ Features
+            - **SOCKS5 Proxy** - Default port 7891
+            - **HTTP Proxy** - Default port 7890
+            - **Mixed Proxy** - Default port 7893 (SOCKS5 + HTTP)
+            - **Modern Web Dashboard** - Real-time monitoring
+            - **Subscription Management** - Auto-update support
+            - **Multi-Protocol** - SS/VMess/VLESS/Trojan/Hysteria/TUIC
+            - **Chinese Localization** - 完整中文汉化
             
-            ### 📦 Installation
+            ### 📦 Downloads
             
-            **For OpenWrt users:**
-            1. Download the `.tar.gz` file
-            2. Extract to your OpenWrt source `package/` directory
-            3. Compile with `make package/luci-app-socks-clash/compile V=s`
+            #### Pre-built IPK Packages
+            | Architecture | Download |
+            |--------------|----------|
+            | x86_64 | `luci-app-socks-clash_*_x86_64.ipk` |
+            | aarch64 (ARM64) | `luci-app-socks-clash_*_aarch64_*.ipk` |
+            | arm_cortex-a7 | `luci-app-socks-clash_*_arm_cortex-a7*.ipk` |
+            | mipsel_24kc | `luci-app-socks-clash_*_mipsel_24kc.ipk` |
+            | mips_24kc | `luci-app-socks-clash_*_mips_24kc.ipk` |
             
-            **Or use the pre-built package:**
+            #### Source Package
+            For manual compilation: `luci-app-socks-clash_*_all.tar.gz`
+            
+            ### 🔧 Installation
             ```bash
+            # Download the IPK for your architecture
             opkg install luci-app-socks-clash_*.ipk
+            
+            # Or compile from source
+            tar -xzf luci-app-socks-clash_*_all.tar.gz
+            cp -r luci-app-socks-clash /path/to/openwrt/package/
+            make package/luci-app-socks-clash/compile V=s
             ```
             
             ### 📋 Changelog
