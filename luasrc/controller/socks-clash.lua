@@ -114,15 +114,15 @@ end
 
 function action_get_log()
     local log_file = "/tmp/socks-clash.log"
-    local lines = tonumber(http.formvalue("lines")) or 100
+    local lines = tonumber(http.formvalue("lines")) or 200
     
     local content = ""
     if fs.access(log_file) then
-        content = sys.exec("tail -n " .. lines .. " " .. log_file .. " 2>/dev/null")
+        content = sys.exec("tail -n " .. lines .. " " .. log_file .. " 2>/dev/null") or ""
     end
     
-    http.prepare_content("text/plain")
-    http.write(content)
+    http.prepare_content("application/json")
+    http.write_json({log = content})
 end
 
 function action_clear_log()
