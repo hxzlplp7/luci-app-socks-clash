@@ -17,6 +17,9 @@ function index()
     -- Overview page
     entry({"admin", "services", "socks-clash", "overview"}, template("socks-clash/overview"), _("Overview"), 10).leaf = true
     
+    -- Dashboard page
+    entry({"admin", "services", "socks-clash", "dashboard"}, template("socks-clash/dashboard"), _("Dashboard"), 15).leaf = true
+    
     -- Settings page
     entry({"admin", "services", "socks-clash", "settings"}, cbi("socks-clash/settings"), _("Settings"), 20).leaf = true
     

@@ -1,0 +1,777 @@
+<%# SocksClash Dashboard - Integrated Clash Web UI -%>
+
+    <%+header%>
+
+        <style>
+            .sc-dashboard-container {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                max-width: 1600px;
+                margin: 0 auto;
+                padding: 24px;
+            }
+
+            .sc-dashboard-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 24px;
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+
+            .sc-dashboard-title {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .sc-dashboard-icon {
+                width: 48px;
+                height: 48px;
+                background: linear-gradient(135deg, #6366f1, #4f46e5);
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                color: white;
+            }
+
+            .sc-dashboard-title h2 {
+                font-size: 24px;
+                font-weight: 700;
+                color: #1e293b;
+                margin: 0;
+            }
+
+            .sc-dashboard-controls {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+
+            .sc-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .sc-btn-primary {
+                background: linear-gradient(135deg, #6366f1, #4f46e5);
+                color: white;
+            }
+
+            .sc-btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+            }
+
+            .sc-btn-outline {
+                background: white;
+                color: #6366f1;
+                border: 2px solid #6366f1;
+            }
+
+            .sc-btn-outline:hover {
+                background: #6366f1;
+                color: white;
+            }
+
+            .sc-dashboard-tabs {
+                display: flex;
+                gap: 4px;
+                background: #f1f5f9;
+                padding: 4px;
+                border-radius: 10px;
+                margin-bottom: 20px;
+            }
+
+            .sc-tab {
+                padding: 10px 20px;
+                background: transparent;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+                color: #64748b;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .sc-tab:hover {
+                color: #4f46e5;
+            }
+
+            .sc-tab.active {
+                background: white;
+                color: #4f46e5;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .sc-panel {
+                display: none;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                overflow: hidden;
+            }
+
+            .sc-panel.active {
+                display: block;
+            }
+
+            .sc-iframe-container {
+                width: 100%;
+                height: 800px;
+                border: none;
+            }
+
+            .sc-iframe-container iframe {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+
+            .sc-connection-panel {
+                padding: 24px;
+            }
+
+            .sc-connection-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .sc-connection-stats {
+                display: flex;
+                gap: 24px;
+            }
+
+            .sc-stat-item {
+                text-align: center;
+            }
+
+            .sc-stat-value {
+                font-size: 28px;
+                font-weight: 700;
+                color: #4f46e5;
+            }
+
+            .sc-stat-label {
+                font-size: 12px;
+                color: #64748b;
+                text-transform: uppercase;
+            }
+
+            .sc-connection-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .sc-connection-table th,
+            .sc-connection-table td {
+                padding: 12px 16px;
+                text-align: left;
+                border-bottom: 1px solid #e2e8f0;
+                font-size: 13px;
+            }
+
+            .sc-connection-table th {
+                background: #f8fafc;
+                font-weight: 600;
+                color: #1e293b;
+            }
+
+            .sc-connection-table tr:hover {
+                background: #f8fafc;
+            }
+
+            .sc-connection-table .sc-chain {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .sc-connection-table .sc-chain-item {
+                padding: 2px 8px;
+                background: #e0e7ff;
+                color: #4f46e5;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 500;
+            }
+
+            .sc-proxy-panel {
+                padding: 24px;
+            }
+
+            .sc-proxy-groups {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .sc-proxy-group {
+                background: #f8fafc;
+                border-radius: 10px;
+                padding: 16px;
+            }
+
+            .sc-proxy-group-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+
+            .sc-proxy-group-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: #1e293b;
+            }
+
+            .sc-proxy-group-type {
+                font-size: 12px;
+                padding: 4px 10px;
+                background: #e0e7ff;
+                color: #4f46e5;
+                border-radius: 20px;
+            }
+
+            .sc-proxy-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .sc-proxy-item {
+                padding: 8px 16px;
+                background: white;
+                border: 2px solid #e2e8f0;
+                border-radius: 8px;
+                font-size: 13px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .sc-proxy-item:hover {
+                border-color: #6366f1;
+                color: #4f46e5;
+            }
+
+            .sc-proxy-item.active {
+                background: #4f46e5;
+                border-color: #4f46e5;
+                color: white;
+            }
+
+            .sc-proxy-item .sc-delay {
+                font-size: 11px;
+                opacity: 0.7;
+                margin-left: 6px;
+            }
+
+            .sc-empty {
+                text-align: center;
+                padding: 60px 20px;
+                color: #64748b;
+            }
+
+            .sc-empty-icon {
+                font-size: 48px;
+                margin-bottom: 16px;
+                opacity: 0.5;
+            }
+
+            .sc-loading {
+                text-align: center;
+                padding: 40px;
+                color: #64748b;
+            }
+
+            .sc-spinner {
+                display: inline-block;
+                width: 32px;
+                height: 32px;
+                border: 3px solid #e2e8f0;
+                border-radius: 50%;
+                border-top-color: #6366f1;
+                animation: spin 0.8s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .sc-external-link {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 60px 20px;
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .sc-external-link p {
+                color: #64748b;
+                font-size: 14px;
+            }
+
+            .sc-dashboard-cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 16px;
+                margin-bottom: 24px;
+            }
+
+            .sc-dashboard-card {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                text-align: center;
+            }
+
+            .sc-dashboard-card-icon {
+                font-size: 32px;
+                margin-bottom: 10px;
+            }
+
+            .sc-dashboard-card-value {
+                font-size: 24px;
+                font-weight: 700;
+                color: #1e293b;
+            }
+
+            .sc-dashboard-card-label {
+                font-size: 12px;
+                color: #64748b;
+                margin-top: 4px;
+            }
+        </style>
+
+        <div class="sc-dashboard-container">
+            <div class="sc-dashboard-header">
+                <div class="sc-dashboard-title">
+                    <div class="sc-dashboard-icon">📊</div>
+                    <h2>
+                        <%:Dashboard%>
+                    </h2>
+                </div>
+                <div class="sc-dashboard-controls">
+                    <button class="sc-btn sc-btn-primary" onclick="testAllProxies()">
+                        <span>⚡</span>
+                        <%:Test All Proxies%>
+                    </button>
+                    <button class="sc-btn sc-btn-outline" onclick="openExternalDashboard()">
+                        <span>🔗</span>
+                        <%:Open External Dashboard%>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="sc-dashboard-cards">
+                <div class="sc-dashboard-card">
+                    <div class="sc-dashboard-card-icon">📡</div>
+                    <div class="sc-dashboard-card-value" id="active-connections">0</div>
+                    <div class="sc-dashboard-card-label">
+                        <%:Active Connections%>
+                    </div>
+                </div>
+                <div class="sc-dashboard-card">
+                    <div class="sc-dashboard-card-icon">⬆️</div>
+                    <div class="sc-dashboard-card-value" id="upload-speed">0 B/s</div>
+                    <div class="sc-dashboard-card-label">
+                        <%:Upload Speed%>
+                    </div>
+                </div>
+                <div class="sc-dashboard-card">
+                    <div class="sc-dashboard-card-icon">⬇️</div>
+                    <div class="sc-dashboard-card-value" id="download-speed">0 B/s</div>
+                    <div class="sc-dashboard-card-label">
+                        <%:Download Speed%>
+                    </div>
+                </div>
+                <div class="sc-dashboard-card">
+                    <div class="sc-dashboard-card-icon">🌐</div>
+                    <div class="sc-dashboard-card-value" id="current-mode">--</div>
+                    <div class="sc-dashboard-card-label">
+                        <%:Current Mode%>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="sc-dashboard-tabs">
+                <button class="sc-tab active" data-panel="proxies" onclick="switchTab('proxies')">
+                    <%:Proxies%>
+                </button>
+                <button class="sc-tab" data-panel="connections" onclick="switchTab('connections')">
+                    <%:Connections%>
+                </button>
+                <button class="sc-tab" data-panel="rules" onclick="switchTab('rules')">
+                    <%:Rules%>
+                </button>
+                <button class="sc-tab" data-panel="logs" onclick="switchTab('logs')">
+                    <%:Logs%>
+                </button>
+            </div>
+
+            <!-- Proxies Panel -->
+            <div id="panel-proxies" class="sc-panel active">
+                <div class="sc-proxy-panel">
+                    <div id="proxy-groups" class="sc-proxy-groups">
+                        <div class="sc-loading">
+                            <div class="sc-spinner"></div>
+                            <p>
+                                <%:Loading proxy groups...%>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connections Panel -->
+            <div id="panel-connections" class="sc-panel">
+                <div class="sc-connection-panel">
+                    <div class="sc-connection-header">
+                        <h3>
+                            <%:Active Connections%>
+                        </h3>
+                        <button class="sc-btn sc-btn-outline" onclick="closeAllConnections()">
+                            <%:Close All%>
+                        </button>
+                    </div>
+                    <div id="connections-table-container">
+                        <table class="sc-connection-table">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <%:Host%>
+                                    </th>
+                                    <th>
+                                        <%:Network%>
+                                    </th>
+                                    <th>
+                                        <%:Type%>
+                                    </th>
+                                    <th>
+                                        <%:Chain%>
+                                    </th>
+                                    <th>
+                                        <%:Download%>
+                                    </th>
+                                    <th>
+                                        <%:Upload%>
+                                    </th>
+                                    <th>
+                                        <%:Time%>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="connections-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules Panel -->
+            <div id="panel-rules" class="sc-panel">
+                <div class="sc-connection-panel">
+                    <h3>
+                        <%:Routing Rules%>
+                    </h3>
+                    <table class="sc-connection-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>
+                                    <%:Type%>
+                                </th>
+                                <th>
+                                    <%:Payload%>
+                                </th>
+                                <th>
+                                    <%:Proxy%>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="rules-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Logs Panel -->
+            <div id="panel-logs" class="sc-panel">
+                <div class="sc-connection-panel">
+                    <div class="sc-connection-header">
+                        <h3><%:Real-time Logs%></h3>
+                        <select id="log-level-filter" onchange="changeLogLevel()">
+                            <option value="debug">Debug</option>
+                            <option value="info" selected>Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </div>
+                    <div id="log-container"
+                        style="height: 500px; overflow-y: auto; background: #0f172a; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 12px; color: #e2e8f0;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            var clashApiBase = '';
+            var clashSecret = '';
+            var updateInterval;
+            var logWs;
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                var k = 1024;
+                var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                var i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function formatSpeed(bytes) {
+                return formatBytes(bytes) + '/s';
+            }
+
+            function getClashApi() {
+                return new Promise(function (resolve) {
+                    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/status")%>', null, function (xhr, data) {
+                        if (data && data.running) {
+                            clashApiBase = 'http://' + data.lan_ip + ':' + data.cn_port;
+                            clashSecret = '';
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    });
+                });
+            }
+
+            function clashRequest(path, method, body) {
+                return new Promise(function (resolve, reject) {
+                    var xhr = new XMLHttpRequest();
+                    xhr.open(method || 'GET', clashApiBase + path, true);
+                    if (clashSecret) {
+                        xhr.setRequestHeader('Authorization', 'Bearer ' + clashSecret);
+                    }
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.onload = function () {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                resolve(JSON.parse(xhr.responseText));
+                            } catch (e) {
+                                resolve({});
+                            }
+                        } else {
+                            reject(xhr.statusText);
+                        }
+                    };
+                    xhr.onerror = function () { reject('Network error'); };
+                    xhr.send(body ? JSON.stringify(body) : null);
+                });
+            }
+
+            function switchTab(panelId) {
+                document.querySelectorAll('.sc-tab').forEach(function (tab) {
+                    tab.classList.remove('active');
+                    if (tab.dataset.panel === panelId) {
+                        tab.classList.add('active');
+                    }
+                });
+                document.querySelectorAll('.sc-panel').forEach(function (panel) {
+                    panel.classList.remove('active');
+                });
+                document.getElementById('panel-' + panelId).classList.add('active');
+            }
+
+            function loadProxyGroups() {
+                clashRequest('/proxies').then(function (data) {
+                    var container = document.getElementById('proxy-groups');
+                    if (!data.proxies) {
+                        container.innerHTML = '<div class="sc-empty"><div class="sc-empty-icon">📡</div><p><%:No proxy groups available%></p></div>';
+                        return;
+                    }
+
+                    var html = '';
+                    var groups = [];
+
+                    // Find proxy groups
+                    Object.keys(data.proxies).forEach(function (name) {
+                        var proxy = data.proxies[name];
+                        if (proxy.all && proxy.all.length > 0) {
+                            groups.push({ name: name, type: proxy.type, now: proxy.now, all: proxy.all });
+                        }
+                    });
+
+                    if (groups.length === 0) {
+                        container.innerHTML = '<div class="sc-empty"><div class="sc-empty-icon">📡</div><p><%:No proxy groups configured%></p></div>';
+                        return;
+                    }
+
+                    groups.forEach(function (group) {
+                        html += '<div class="sc-proxy-group">';
+                        html += '<div class="sc-proxy-group-header">';
+                        html += '<span class="sc-proxy-group-name">' + group.name + '</span>';
+                        html += '<span class="sc-proxy-group-type">' + group.type + '</span>';
+                        html += '</div>';
+                        html += '<div class="sc-proxy-list">';
+                        group.all.forEach(function (proxyName) {
+                            var isActive = proxyName === group.now;
+                            html += '<div class="sc-proxy-item' + (isActive ? ' active' : '') + '" onclick="selectProxy(\'' + group.name + '\', \'' + proxyName + '\')">';
+                            html += proxyName;
+                            html += '</div>';
+                        });
+                        html += '</div></div>';
+                    });
+
+                    container.innerHTML = html;
+                }).catch(function (err) {
+                    console.error('Failed to load proxies:', err);
+                });
+            }
+
+            function selectProxy(groupName, proxyName) {
+                clashRequest('/proxies/' + encodeURIComponent(groupName), 'PUT', { name: proxyName }).then(function () {
+                    loadProxyGroups();
+                });
+            }
+
+            function loadConnections() {
+                clashRequest('/connections').then(function (data) {
+                    var tbody = document.getElementById('connections-body');
+                    document.getElementById('active-connections').textContent = data.connections ? data.connections.length : 0;
+
+                    if (!data.connections || data.connections.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#64748b;"><%:No active connections%></td></tr>';
+                        return;
+                    }
+
+                    var html = '';
+                    data.connections.forEach(function (conn) {
+                        html += '<tr>';
+                        html += '<td>' + (conn.metadata.host || conn.metadata.destinationIP) + ':' + conn.metadata.destinationPort + '</td>';
+                        html += '<td>' + conn.metadata.network + '</td>';
+                        html += '<td>' + conn.metadata.type + '</td>';
+                        html += '<td><div class="sc-chain">';
+                        conn.chains.forEach(function (c) {
+                            html += '<span class="sc-chain-item">' + c + '</span>';
+                        });
+                        html += '</div></td>';
+                        html += '<td>' + formatBytes(conn.download) + '</td>';
+                        html += '<td>' + formatBytes(conn.upload) + '</td>';
+                        html += '<td>' + new Date(conn.start).toLocaleTimeString() + '</td>';
+                        html += '</tr>';
+                    });
+                    tbody.innerHTML = html;
+                });
+            }
+
+            function loadRules() {
+                clashRequest('/rules').then(function (data) {
+                    var tbody = document.getElementById('rules-body');
+                    if (!data.rules || data.rules.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;"><%:No rules configured%></td></tr>';
+                        return;
+                    }
+
+                    var html = '';
+                    data.rules.forEach(function (rule, index) {
+                        html += '<tr>';
+                        html += '<td>' + (index + 1) + '</td>';
+                        html += '<td>' + rule.type + '</td>';
+                        html += '<td>' + rule.payload + '</td>';
+                        html += '<td>' + rule.proxy + '</td>';
+                        html += '</tr>';
+                    });
+                    tbody.innerHTML = html;
+                });
+            }
+
+            function loadTraffic() {
+                clashRequest('/traffic').then(function (data) {
+                    document.getElementById('upload-speed').textContent = formatSpeed(data.up || 0);
+                    document.getElementById('download-speed').textContent = formatSpeed(data.down || 0);
+                });
+            }
+
+            function loadMode() {
+                clashRequest('/configs').then(function (data) {
+                    document.getElementById('current-mode').textContent = data.mode || '--';
+                });
+            }
+
+            function testAllProxies() {
+                clashRequest('/proxies').then(function (data) {
+                    Object.keys(data.proxies).forEach(function (name) {
+                        var proxy = data.proxies[name];
+                        if (proxy.type === 'Selector' || proxy.type === 'URLTest') {
+                            clashRequest('/proxies/' + encodeURIComponent(name) + '/delay?timeout=5000&url=http://www.gstatic.com/generate_204', 'GET');
+                        }
+                    });
+                    alert('<%:Delay test started for all proxies%>');
+                });
+            }
+
+            function closeAllConnections() {
+                if (confirm('<%:Are you sure you want to close all connections?%>')) {
+                    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/close_connections")%>', null, function () {
+                        loadConnections();
+                    });
+                }
+            }
+
+            function openExternalDashboard() {
+                var url = clashApiBase + '/ui';
+                window.open(url, '_blank');
+            }
+
+            function changeLogLevel() {
+                var level = document.getElementById('log-level-filter').value;
+                clashRequest('/configs', 'PATCH', { 'log-level': level });
+            }
+
+            function updateDashboard() {
+                loadConnections();
+                loadTraffic();
+                loadMode();
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                getClashApi().then(function (running) {
+                    if (running) {
+                        loadProxyGroups();
+                        loadConnections();
+                        loadRules();
+                        loadTraffic();
+                        loadMode();
+                        updateInterval = setInterval(updateDashboard, 2000);
+                    } else {
+                        document.getElementById('proxy-groups').innerHTML = '<div class="sc-empty"><div class="sc-empty-icon">⚠️</div><p><%:Clash is not running. Please start the service first.%></p></div>';
+                    }
+                });
+            });
+
+            window.addEventListener('beforeunload', function () {
+                clearInterval(updateInterval);
+            });
+        </script>
+
+        <%+footer%>

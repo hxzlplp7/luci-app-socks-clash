@@ -420,3 +420,68 @@ msgstr "全局模式"
 msgid "Direct Mode"
 msgstr "直连模式"
 
+msgid "Test All Proxies"
+msgstr "测试所有代理"
+
+msgid "Open External Dashboard"
+msgstr "打开外部仪表盘"
+
+msgid "Active Connections"
+msgstr "活跃连接"
+
+msgid "Upload Speed"
+msgstr "上传速度"
+
+msgid "Download Speed"
+msgstr "下载速度"
+
+msgid "Current Mode"
+msgstr "当前模式"
+
+msgid "Proxies"
+msgstr "代理节点"
+
+msgid "Host"
+msgstr "主机"
+
+msgid "Chain"
+msgstr "链路"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Close All"
+msgstr "关闭全部"
+
+msgid "Routing Rules"
+msgstr "路由规则"
+
+msgid "Payload"
+msgstr "匹配内容"
+
+msgid "Real-time Logs"
+msgstr "实时日志"
+
+msgid "Loading proxy groups..."
+msgstr "加载代理组中..."
+
+msgid "No proxy groups available"
+msgstr "无可用代理组"
+
+msgid "No proxy groups configured"
+msgstr "未配置代理组"
+
+msgid "No active connections"
+msgstr "无活跃连接"
+
+msgid "No rules configured"
+msgstr "未配置规则"
+
+msgid "Delay test started for all proxies"
+msgstr "已开始对所有代理进行延迟测试"
+
+msgid "Are you sure you want to close all connections?"
+msgstr "确定要关闭所有连接吗？"
+
+msgid "Clash is not running. Please start the service first."
+msgstr "Clash 未运行。请先启动服务。"
