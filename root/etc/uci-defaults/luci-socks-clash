@@ -5,10 +5,14 @@ mkdir -p /etc/socks-clash/config
 mkdir -p /etc/socks-clash/core
 
 # Set permissions
-chmod 755 /etc/init.d/socks-clash
-chmod 755 /usr/share/socks-clash/*.sh 2>/dev/null
+chmod 755 /etc/init.d/socks-clash 2>/dev/null
+chmod -R 755 /usr/share/socks-clash/ 2>/dev/null
 
-# Enable service
-/etc/init.d/socks-clash enable
+# Clear LuCI cache
+rm -rf /tmp/luci-modulecache
+rm -f /tmp/luci-indexcache
+
+# Reload ubus
+ubus call service event '{"type":"config.change","data":{"package":"socks-clash"}}'
 
 exit 0

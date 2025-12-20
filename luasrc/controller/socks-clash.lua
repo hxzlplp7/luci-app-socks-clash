@@ -7,10 +7,6 @@ local sys = require "luci.sys"
 local http = require "luci.http"
 
 function index()
-    if not nixio.fs.access("/etc/config/socks-clash") then
-        return
-    end
-
     local page
 
     -- Main entry
