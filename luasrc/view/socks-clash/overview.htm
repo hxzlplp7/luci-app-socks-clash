@@ -220,7 +220,7 @@
     <div class="sc-page">
         <div class="sc-header">
             <div class="sc-title">
-                <div class="sc-logo"></div>
+                <div class="sc-logo">⚡</div>
                 <div>
                     <h1>SocksClash</h1>
                     <div style="color: var(--gray); font-size: 13px;">简化的代理服务管理</div>
@@ -228,26 +228,26 @@
             </div>
             <div class="sc-controls">
                 <button class="sc-btn sc-btn-success" id="btn-start" onclick="startService()">
-                    <span></span> 启动
+                    <span>▶</span> 启动
                 </button>
                 <button class="sc-btn sc-btn-danger" id="btn-stop" onclick="stopService()">
-                    <span></span> 停止
+                    <span>■</span> 停止
                 </button>
                 <button class="sc-btn sc-btn-primary" onclick="restartService()">
-                    <span></span> 重启
+                    <span>↻</span> 重启
                 </button>
             </div>
         </div>
 
         <!-- Core Alert -->
         <div class="sc-alert sc-alert-warning" id="core-alert" style="display: none;">
-            <span></span>
+            <span>⚠️</span>
             <div>
                 <strong>未检测到 Clash 内核</strong>
                 <div style="font-size: 13px; margin-top: 4px;">需要下载 Clash Meta 内核才能使用代理功能</div>
             </div>
             <button class="sc-btn sc-btn-warning" onclick="downloadCore()" style="margin-left: auto;">
-                <span></span> 下载内核
+                <span>⬇️</span> 下载内核
             </button>
         </div>
 
@@ -256,7 +256,7 @@
             <div class="sc-card">
                 <div class="sc-card-title">服务状态</div>
                 <div id="status-badge" class="sc-status-badge sc-status-stopped">
-                    <span></span> 已停止
+                    <span>●</span> 已停止
                 </div>
                 <div style="margin-top: 16px;">
                     <div class="sc-info-row">
@@ -294,11 +294,11 @@
             <div class="sc-card">
                 <div class="sc-card-title">流量统计</div>
                 <div class="sc-info-row">
-                    <span class="sc-info-label"> 上传</span>
+                    <span class="sc-info-label">⬆️ 上传</span>
                     <span class="sc-info-value" id="traffic-up">0 B/s</span>
                 </div>
                 <div class="sc-info-row">
-                    <span class="sc-info-label"> 下载</span>
+                    <span class="sc-info-label">⬇️ 下载</span>
                     <span class="sc-info-value" id="traffic-down">0 B/s</span>
                 </div>
             </div>
@@ -308,10 +308,10 @@
                 <div class="sc-card-title">快捷操作</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <button class="sc-btn sc-btn-primary" onclick="window.location.href='<%=luci.dispatcher.build_url("admin/services/socks-clash/dashboard")%>'">
-                        <span></span> 打开控制面板
+                        <span>🎛️</span> 打开控制面板
                     </button>
                     <button class="sc-btn" style="background: #f1f5f9; color: var(--dark);" onclick="downloadCore()">
-                        <span></span> 下载/更新内核
+                        <span>⬇️</span> 下载/更新内核
                     </button>
                 </div>
             </div>
@@ -346,12 +346,12 @@
                         var badge = $('status-badge');
                         if (data.running) {
                             badge.className = 'sc-status-badge sc-status-running';
-                            badge.innerHTML = '<span></span> 运行中';
+                            badge.innerHTML = '<span>●</span> 运行中';
                             API_BASE = 'http://' + data.lan_ip + ':' + data.cn_port;
                             updateTraffic();
                         } else {
                             badge.className = 'sc-status-badge sc-status-stopped';
-                            badge.innerHTML = '<span></span> 已停止';
+                            badge.innerHTML = '<span>●</span> 已停止';
                         }
 
                         $('proxy-mode').textContent = data.mode || '--';
@@ -442,4 +442,4 @@
             }, 2000);
         })();
     </script>
-<%+footer%>
+    <%+footer%>
