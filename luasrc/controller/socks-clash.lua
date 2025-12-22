@@ -38,6 +38,9 @@ function index()
     -- Log page
     entry({"admin", "services", "socks-clash", "log"}, template("socks-clash/log"), "日志", 60).leaf = true
     
+    -- Config Editor page
+    entry({"admin", "services", "socks-clash", "editor"}, template("socks-clash/editor"), "编辑配置", 65).leaf = true
+    
     -- API endpoints
     entry({"admin", "services", "socks-clash", "status"}, call("action_status")).leaf = true
     entry({"admin", "services", "socks-clash", "start"}, call("action_start")).leaf = true
@@ -51,6 +54,9 @@ function index()
     entry({"admin", "services", "socks-clash", "download_core"}, call("action_download_core")).leaf = true
     entry({"admin", "services", "socks-clash", "check_core"}, call("action_check_core")).leaf = true
     entry({"admin", "services", "socks-clash", "upload_config"}, call("action_upload_config")).leaf = true
+    entry({"admin", "services", "socks-clash", "get_config"}, call("action_get_config")).leaf = true
+    entry({"admin", "services", "socks-clash", "save_config"}, call("action_save_config")).leaf = true
+    entry({"admin", "services", "socks-clash", "reset_config"}, call("action_reset_config")).leaf = true
 end
 
 -- Helper functions
@@ -199,4 +205,148 @@ function action_upload_config()
     end
     http.prepare_content("application/json")
     http.write_json({success = false, message = "上传失败"})
+end
+
+function action_get_config()
+    local config_dir = "/etc/socks-clash/config"
+    local filename = http.formvalue("file") or "config.yaml"
+    local config_path = config_dir .. "/" .. filename
+    
+    -- 安全检查，防止目录遍历
+    if filename:match("\.\.") then
+        http.prepare_content("application/json")
+        http.write_json({success = false, message = "无效的文件名"})
+        return
+    end
+    
+    local content = ""
+    if fs.access(config_path) then
+        content = fs.readfile(config_path) or ""
+    end
+    
+    -- 获取配置目录下的所有 yaml 文件
+    local files = {}
+    local dir = io.popen("ls -1 " .. config_dir .. "/*.yaml 2>/dev/null")
+    if dir then
+        for file in dir:lines() do
+            local name = file:match("([^/]+)$")
+            if name then
+                table.insert(files, name)
+            end
+        end
+        dir:close()
+    end
+    
+    -- 确保 config.yaml 在列表中
+    local has_main = false
+    for _, f in ipairs(files) do
+        if f == "config.yaml" then has_main = true break end
+    end
+    if not has_main then
+        table.insert(files, 1, "config.yaml")
+    end
+    
+    http.prepare_content("application/json")
+    http.write_json({
+        success = true,
+        content = content,
+        files = files,
+        current = filename
+    })
+end
+
+function action_save_config()
+    local config_dir = "/etc/socks-clash/config"
+    local filename = http.formvalue("file") or "config.yaml"
+    local content = http.formvalue("content") or ""
+    local restart = http.formvalue("restart")
+    local config_path = config_dir .. "/" .. filename
+    
+    -- 安全检查
+    if filename:match("\.\.") then
+        http.prepare_content("application/json")
+        http.write_json({success = false, message = "无效的文件名"})
+        return
+    end
+    
+    -- 确保目录存在
+    sys.call("mkdir -p " .. config_dir)
+    
+    local f = io.open(config_path, "w")
+    if f then
+        f:write(content)
+        f:close()
+        
+        -- 记录日志
+        sys.call("echo '" .. os.date("%Y-%m-%d %H:%M:%S") .. " [信息] 配置文件已保存: " .. filename .. "' >> /tmp/socks-clash.log")
+        
+        -- 如果需要重启
+        if restart == "1" then
+            sys.call("/etc/init.d/socks-clash restart >/dev/null 2>&1")
+        end
+        
+        http.prepare_content("application/json")
+        http.write_json({success = true})
+        return
+    end
+    
+    http.prepare_content("application/json")
+    http.write_json({success = false, message = "保存失败"})
+end
+
+function action_reset_config()
+    local config_path = "/etc/socks-clash/config/config.yaml"
+    
+    -- 默认配置
+    local default_config = [[
+# SocksClash 默认配置
+# 请添加您的代理服务器和规则
+
+mixed-port: 7893
+port: 7890
+socks-port: 7891
+allow-lan: true
+bind-address: "*"
+mode: rule
+log-level: info
+ipv6: false
+
+external-controller: 0.0.0.0:9090
+
+dns:
+  enable: false
+
+profile:
+  store-selected: true
+  store-fake-ip: false
+
+# 代理服务器 - 在此添加您的节点
+proxies: []
+
+# 代理组
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - DIRECT
+      - REJECT
+
+# 规则
+rules:
+  - GEOIP,CN,DIRECT
+  - MATCH,PROXY
+]]
+    
+    local f = io.open(config_path, "w")
+    if f then
+        f:write(default_config)
+        f:close()
+        sys.call("echo '" .. os.date("%Y-%m-%d %H:%M:%S") .. " [信息] 配置文件已重置为默认' >> /tmp/socks-clash.log")
+        http.prepare_content("application/json")
+        http.write_json({success = true})
+        return
+    end
+    
+    http.prepare_content("application/json")
+    http.write_json({success = false, message = "重置失败"})
 end

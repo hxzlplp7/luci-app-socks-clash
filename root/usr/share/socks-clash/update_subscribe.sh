@@ -106,33 +106,42 @@ log "========================================="
 log "开始更新订阅"
 log "========================================="
 
-# 从 UCI 读取订阅配置
+# 调试: 显示所有 UCI 配置
+log "读取 UCI 配置..."
+
+# 从 UCI 读取订阅配置 - 使用多种方法尝试
 count=0
 success=0
 
-# 使用 uci show 获取所有 config_subscribe 类型的配置
-for section in $(uci show $UCI_CONFIG 2>/dev/null | grep "=config_subscribe" | cut -d'.' -f2 | cut -d'=' -f1); do
-    enabled=$(uci -q get "$UCI_CONFIG.$section.enabled")
+# 方法1: 直接遍历所有 section
+. /lib/functions.sh
+
+handle_subscribe() {
+    local section="$1"
+    local enabled name address sub_ua
     
-    if [ "$enabled" = "1" ]; then
-        name=$(uci -q get "$UCI_CONFIG.$section.name")
-        address=$(uci -q get "$UCI_CONFIG.$section.address")
-        sub_ua=$(uci -q get "$UCI_CONFIG.$section.sub_ua")
-        [ -z "$sub_ua" ] && sub_ua="ClashMeta"
-        
-        if [ -n "$name" ] && [ -n "$address" ]; then
-            log "处理订阅: $name"
-            if update_subscription "$name" "$address" "$sub_ua"; then
-                success=$((success + 1))
-            fi
-            count=$((count + 1))
+    config_get_bool enabled "$section" enabled 0
+    config_get name "$section" name ""
+    config_get address "$section" address ""
+    config_get sub_ua "$section" sub_ua "ClashMeta"
+    
+    log "找到订阅配置: section=$section, name=$name, enabled=$enabled"
+    
+    if [ "$enabled" = "1" ] && [ -n "$name" ] && [ -n "$address" ]; then
+        log "处理订阅: $name"
+        if update_subscription "$name" "$address" "$sub_ua"; then
+            success=$((success + 1))
         fi
+        count=$((count + 1))
     fi
-done
+}
+
+config_load "$UCI_CONFIG"
+config_foreach handle_subscribe config_subscribe
 
 if [ "$count" = "0" ]; then
     log "未找到已启用的订阅"
-    log "提示: 请在 LuCI 界面的'订阅'页面添加订阅地址"
+    log "提示: 请在 LuCI 界面的'订阅'页面添加订阅地址，并点击'保存并应用'"
 else
     log "处理完成: $success/$count 个订阅更新成功"
 fi
@@ -141,8 +150,8 @@ log "========================================="
 log "订阅更新完成"
 log "========================================="
 
-# 如果服务正在运行，则重启服务
-if pgrep -f "/etc/socks-clash/core/clash" >/dev/null 2>&1; then
+# 如果服务正在运行且有成功的订阅，则重启服务
+if [ "$success" -gt 0 ] && pgrep -f "/etc/socks-clash/core/clash" >/dev/null 2>&1; then
     log "正在重启 SocksClash 服务以应用新配置..."
     /etc/init.d/socks-clash restart
     log_success "服务已重启"
