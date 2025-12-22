@@ -1,12 +1,13 @@
 #!/bin/bash
-# SocksClash 订阅更新脚本
+# SocksClash v1.2.0 订阅更新脚本
+# 包含节点过滤器功能
 
 START_LOG="/tmp/socks-clash_start.log"
 LOG_FILE="/tmp/socks-clash.log"
 CONFIG_DIR="/etc/socks-clash/config"
 UCI_CONFIG="socks-clash"
 
-# 日志函数 - 完全模仿 OpenClash log.sh
+# 日志函数
 LOG_OUT() {
     if [ -n "${1}" ]; then
         echo -e "${1}" > "$START_LOG"
@@ -29,13 +30,76 @@ del_lock() {
     rm -rf "/tmp/lock/socks_clash_update.lock" 2>/dev/null
 }
 
-# 确保清理锁
 trap 'del_lock' EXIT
 
+# 节点过滤器函数
+filter_proxies() {
+    local config_file="$1"
+    local section="$2"
+    
+    # 读取过滤器配置
+    local keyword_include=$(uci -q get "$UCI_CONFIG.$section.keyword_include")
+    local keyword_exclude=$(uci -q get "$UCI_CONFIG.$section.keyword_exclude")
+    local type_filter=$(uci -q get "$UCI_CONFIG.$section.type_filter")
+    local remove_duplicate=$(uci -q get "$UCI_CONFIG.$section.remove_duplicate" || echo "0")
+    local max_nodes=$(uci -q get "$UCI_CONFIG.$section.max_nodes" || echo "0")
+    
+    # 如果没有任何过滤条件，直接返回
+    if [ -z "$keyword_include" ] && [ -z "$keyword_exclude" ] && [ -z "$type_filter" ] && [ "$remove_duplicate" = "0" ] && [ "$max_nodes" = "0" ]; then
+        return 0
+    fi
+    
+    LOG_OUT "Tip: 应用节点过滤器..."
+    
+    local tmp_filtered="/tmp/filtered_$$.yaml"
+    local proxies_count=0
+    local filtered_count=0
+    
+    # 使用 awk 进行过滤（简化版，实际应该用更强大的 YAML 解析器）
+    awk -v include="$keyword_include" -v exclude="$keyword_exclude" '
+    BEGIN { in_proxies=0; skip=0 }
+    /^proxies:/ { in_proxies=1; print; next }
+    /^proxy-groups:/ { in_proxies=0 }
+    {
+        if (in_proxies && /^  - name:/) {
+            # 提取节点名称
+            name = $0
+            sub(/.*name: */, "", name)
+            sub(/"/, "", name)
+            sub(/".*/, "", name)
+            
+            # 关键词包含过滤
+            if (include != "" && index(name, include) == 0) {
+                skip=1
+                next
+            }
+            
+            # 关键词排除过滤
+            if(exclude != "" && index(name, exclude) > 0) {
+                skip=1
+                next
+            }
+            
+            skip=0
+        }
+        
+        if (!skip) print
+    }
+    ' "$config_file" > "$tmp_filtered"
+    
+    if [ -s "$tmp_filtered" ]; then
+        mv "$tmp_filtered" "$config_file"
+        LOG_OUT "Tip: 节点过滤完成"
+    else
+        rm -f "$tmp_filtered"
+    fi
+}
+
 update_subscription() {
-    local name="$1"
-    local url="$2"
-    local ua="$3"
+    local section="$1"
+    local name="$2"
+    local url="$3"
+    local ua="$4"
     
     [ -z "$url" ] && return 1
     
@@ -62,13 +126,28 @@ update_subscription() {
         LOG_OUT "Tip:【$retry_count/$max_retries】正在下载订阅【$name】..."
         LOG_OUT "Tip: 订阅地址: $url"
         
-        if curl -sL -m 30 --retry 2 \
+        # 下载订阅，同时获取订阅信息
+        local headers_file="/tmp/sub_headers_$$.txt"
+        if curl -sL -D "$headers_file" -m 30 --retry 2 \
             -H "User-Agent: $ua_string" \
             -o "$tmp_file" \
             "$url"; then
             
             if [ -s "$tmp_file" ]; then
                 download_success=true
+                
+                # 解析订阅信息（Subscription-Userinfo）
+                if [ -f "$headers_file" ]; then
+                    local sub_info=$(grep -i "subscription-userinfo" "$headers_file" | tr -d '\r\n')
+                    if [ -n "$sub_info" ]; then
+                        LOG_OUT "Tip: 订阅信息: $sub_info"
+                       # 保存订阅信息到 UCI
+                        uci -q set "$UCI_CONFIG.$section.sub_info=$sub_info"
+                        uci -q commit "$UCI_CONFIG"
+                    fi
+                    rm -f "$headers_file"
+                fi
+                
                 break
             else
                 LOG_OUT "Error: 下载的文件为空..."
@@ -88,6 +167,8 @@ update_subscription() {
         # 验证/解码
         if head -5 "$tmp_file" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:|\{)"; then
             mv "$tmp_file" "$output_file"
+            # 应用过滤器
+            filter_proxies "$output_file" "$section"
             LOG_OUT "Tip: 订阅【$name】更新成功"
             return 0
         else
@@ -95,6 +176,8 @@ update_subscription() {
             if base64 -d "$tmp_file" > "${tmp_file}.decoded" 2>/dev/null; then
                  if head -5 "${tmp_file}.decoded" | grep -qE "^(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
                     mv "${tmp_file}.decoded" "$output_file"
+                    # 应用过滤器
+                    filter_proxies "$output_file" "$section"
                     LOG_OUT "Tip: 订阅【$name】解码并更新成功"
                     rm -f "$tmp_file"
                     return 0
@@ -119,7 +202,6 @@ mkdir -p "/tmp/lock"
 LOG_OUT "========================================="
 LOG_OUT "Tip: 开始更新订阅"
 
-# 读取配置逻辑
 . /lib/functions.sh
 
 count=0
@@ -134,7 +216,7 @@ handle_subscribe() {
     config_get address "$section" address ""
     config_get sub_ua "$section" sub_ua "ClashMeta"
     
-    # 容错处理: 再次确认为 0 才是真的禁用
+    # 容错处理
     local raw_enabled=$(uci -q get "$UCI_CONFIG.$section.enabled")
     if [ "$raw_enabled" = "0" ]; then
         enabled=0
@@ -143,7 +225,7 @@ handle_subscribe() {
     fi
     
     if [ "$enabled" = "1" ] && [ -n "$name" ] && [ -n "$address" ]; then
-        if update_subscription "$name" "$address" "$sub_ua"; then
+        if update_subscription "$section" "$name" "$address" "$sub_ua"; then
             success=$((success + 1))
         fi
         count=$((count + 1))
@@ -180,5 +262,4 @@ LOG_OUT "Tip: 订阅更新完成"
 LOG_OUT "========================================="
 SLOG_CLEAN
 
-# 确保清理锁
 del_lock
