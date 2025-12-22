@@ -11,6 +11,8 @@ s.addremove = false
 o = s:option(Flag, "enable", "启用")
 o.rmempty = false
 o.default = "0"
+o.enabled = "1"
+o.disabled = "0"
 
 -- Log Level
 o = s:option(ListValue, "log_level", "日志级别")

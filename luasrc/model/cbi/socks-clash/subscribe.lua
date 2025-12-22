@@ -21,6 +21,8 @@ o.placeholder = "https://example.com/subscribe"
 o = s:option(Flag, "enabled", "启用")
 o.default = "1"
 o.rmempty = false
+o.enabled = "1"
+o.disabled = "0"
 
 o = s:option(ListValue, "sub_ua", "用户代理")
 o:value("Clash", "Clash")
