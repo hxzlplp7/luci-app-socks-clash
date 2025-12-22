@@ -26,8 +26,8 @@ function index()
     -- Proxy Settings
     entry({"admin", "services", "socks-clash", "proxy"}, cbi("socks-clash/proxy"), "代理配置", 30).leaf = true
     
-    -- Servers page (Clash 不支持通过界面添加单个节点，只能用订阅或配置文件)
-    -- entry({"admin", "services", "socks-clash", "servers"}, cbi("socks-clash/servers"), "服务器", 40).leaf = true
+    -- Servers page
+    entry({"admin", "services", "socks-clash", "servers"}, cbi("socks-clash/servers"), "服务器", 40).leaf = true
     
     -- Rules page
     entry({"admin", "services", "socks-clash", "rules"}, cbi("socks-clash/rules"), "规则", 50).leaf = true

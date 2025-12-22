@@ -1,80 +1,112 @@
 local m, s, o
-local fs = require "nixio.fs"
+local sys = require "luci.sys"
+local nixio = require "nixio"
 
-m = Map("socks-clash", "代理服务器",
-    "管理代理服务器配置。您可以在此添加、编辑或删除代理服务器。")
+m = Map("socks-clash", "服务器管理",
+    "手动添加和管理代理服务器节点。支持多种协议：Shadowsocks、VMess、VLESS、Trojan、Hysteria、TUIC等。")
 
--- Proxy Servers
-s = m:section(TypedSection, "proxy_server", "代理服务器列表")
+-- Server List
+s = m:section(TypedSection, "servers", "服务器列表")
 s.anonymous = true
 s.addremove = true
 s.sortable = true
 s.template = "cbi/tblsection"
 
--- Server Name
-o = s:option(Value, "name", "名称")
+o = s:option(Flag, "enabled", "启用")
+o.default = "1"
 o.rmempty = false
-o.placeholder = "服务器名称"
+o.width = "5%"
 
--- Server Type
+o = s:option(Value, "alias", "别名")
+o.rmempty = false
+o.placeholder = "节点名称"
+o.width = "20%"
+
 o = s:option(ListValue, "type", "类型")
 o:value("ss", "Shadowsocks")
-o:value("ssr", "ShadowsocksR")
 o:value("vmess", "VMess")
 o:value("vless", "VLESS")
 o:value("trojan", "Trojan")
 o:value("hysteria", "Hysteria")
 o:value("hysteria2", "Hysteria2")
 o:value("tuic", "TUIC")
-o:value("socks5", "SOCKS5")
-o:value("http", "HTTP")
 o.default = "ss"
+o.width = "10%"
 
--- Server Address
-o = s:option(Value, "server", "服务器")
+o = s:option(Value, "server", "服务器地址")
 o.rmempty = false
-o.datatype = "host"
-o.placeholder = "服务器地址"
+o.placeholder = "example.com"
+o.width = "20%"
 
--- Server Port
 o = s:option(Value, "port", "端口")
 o.rmempty = false
 o.datatype = "port"
+o.placeholder = "443"
+o.width = "8%"
 
--- Enable/Disable
-o = s:option(Flag, "enabled", "启用")
-o.default = "1"
+o = s:option(DummyValue, "delay", "延迟")
+o.width = "8%"
+o.rawhtml = true
+o.value = function(self, section)
+    local delay_file = "/tmp/socks-clash_delay_" .. section
+    if nixio.fs.access(delay_file) then
+        local delay = nixio.fs.readfile(delay_file):gsub("%s+", "")
+        if delay == "0" or delay == "" then
+            return "<span style='color:red;'>超时</span>"
+        else
+            local delay_num = tonumber(delay)
+            if delay_num < 150 then
+                return string.format("<span style='color:#22c55e;'>%sms</span>", delay)
+            elseif delay_num < 400 then
+                return string.format("<span style='color:#f59e0b;'>%sms</span>", delay)
+            else
+                return string.format("<span style='color:#ef4444;'>%sms</span>", delay)
+            end
+        end
+    else
+        return "<span style='color:#64748b;'>未测试</span>"
+    end
+end
 
--- Full configuration form
-local ss = m:section(NamedSection, "new_server", "proxy_server", "新建服务器配置")
-ss.anonymous = true
-ss.addremove = false
+o = s:option(Button, "_test", "测速")
+o.inputtitle = "测试"
+o.inputstyle = "apply"
+o.write = function(self, section)
+    sys.call("sh /usr/share/socks-clash/test_proxy.sh " .. section .. " &")
+end
+o.width = "8%"
 
-o = ss:option(Value, "name", "名称")
+-- Edit Server Details
+s = m:section(NamedSection, nil, "servers", "服务器详细配置")
+s.addremove = false
+s.anonymous = true
+
+-- Common Settings
+o = s:option(Value, "alias", "别名")
 o.rmempty = false
+o.placeholder = "节点名称，如：香港 01"
 
-o = ss:option(ListValue, "type", "类型")
+o = s:option(ListValue, "type", "协议类型")
 o:value("ss", "Shadowsocks")
-o:value("ssr", "ShadowsocksR")
 o:value("vmess", "VMess")
 o:value("vless", "VLESS")
 o:value("trojan", "Trojan")
 o:value("hysteria", "Hysteria")
 o:value("hysteria2", "Hysteria2")
 o:value("tuic", "TUIC")
-o:value("socks5", "SOCKS5")
-o:value("http", "HTTP")
+o.default = "ss"
 
-o = ss:option(Value, "server", "服务器地址")
+o = s:option(Value, "server", "服务器地址")
 o.rmempty = false
-o.datatype = "host"
+o.placeholder = "example.com 或 IP 地址"
 
-o = ss:option(Value, "port", "端口")
+o = s:option(Value, "port", "端口")
 o.rmempty = false
 o.datatype = "port"
+o.placeholder = "443"
 
--- Shadowsocks specific
-o = ss:option(ListValue, "cipher", "加密方式")
+-- Shadowsocks Settings
+o = s:option(ListValue, "cipher", "加密方式")
 o:value("aes-128-gcm", "aes-128-gcm")
 o:value("aes-192-gcm", "aes-192-gcm")
 o:value("aes-256-gcm", "aes-256-gcm")
@@ -82,65 +114,92 @@ o:value("chacha20-ietf-poly1305", "chacha20-ietf-poly1305")
 o:value("xchacha20-ietf-poly1305", "xchacha20-ietf-poly1305")
 o:value("2022-blake3-aes-128-gcm", "2022-blake3-aes-128-gcm")
 o:value("2022-blake3-aes-256-gcm", "2022-blake3-aes-256-gcm")
-o:value("2022-blake3-chacha20-poly1305", "2022-blake3-chacha20-poly1305")
 o.default = "aes-256-gcm"
 o:depends("type", "ss")
 
-o = ss:option(Value, "password", "密码")
+o = s:option(Value, "password", "密码")
 o.password = true
+o.rmempty = false
 o:depends("type", "ss")
-o:depends("type", "ssr")
 o:depends("type", "trojan")
 
--- VMess/VLESS specific
-o = ss:option(Value, "uuid", "UUID")
+-- VMess/VLESS Settings
+o = s:option(Value, "uuid", "UUID")
+o.rmempty = false
+o.placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 o:depends("type", "vmess")
 o:depends("type", "vless")
 
-o = ss:option(Value, "alterId", "额外 ID")
+o = s:option(Value, "alterId", "Alter ID")
 o.datatype = "uinteger"
 o.default = "0"
 o:depends("type", "vmess")
 
--- Network
-o = ss:option(ListValue, "network", "传输协议")
+o = s:option(ListValue, "cipher_vmess", "加密方式")
+o:value("auto", "auto")
+o:value("aes-128-gcm", "aes-128-gcm")
+o:value("chacha20-poly1305", "chacha20-poly1305")
+o:value("none", "none")
+o.default = "auto"
+o:depends("type", "vmess")
+
+-- Network Settings
+o = s:option(ListValue, "network", "传输协议")
 o:value("tcp", "TCP")
 o:value("ws", "WebSocket")
-o:value("grpc", "gRPC")
 o:value("h2", "HTTP/2")
-o:value("quic", "QUIC")
+o:value("grpc", "gRPC")
 o.default = "tcp"
 o:depends("type", "vmess")
 o:depends("type", "vless")
 o:depends("type", "trojan")
 
--- TLS
-o = ss:option(Flag, "tls", "TLS")
+o = s:option(Value, "ws_path", "WebSocket Path")
+o.placeholder = "/path"
+o:depends("network", "ws")
+
+o = s:option(Value, "ws_host", "WebSocket Host")
+o.placeholder = "example.com"
+o:depends("network", "ws")
+
+-- TLS Settings
+o = s:option(Flag, "tls", "启用 TLS")
 o.default = "0"
 o:depends("type", "vmess")
 o:depends("type", "vless")
 o:depends("type", "trojan")
 
--- SNI
-o = ss:option(Value, "sni", "SNI")
+o = s:option(Value, "sni", "SNI")
+o.placeholder = "example.com"
 o:depends("tls", "1")
 
--- Skip Cert Verify
-o = ss:option(Flag, "skip_cert_verify", "跳过证书验证")
+o = s:option(Flag, "skip_cert_verify", "跳过证书验证")
 o.default = "0"
 o:depends("tls", "1")
 
--- WebSocket Path
-o = ss:option(Value, "ws_path", "WebSocket 路径")
-o.placeholder = "/path"
-o:depends("network", "ws")
+-- UDP Settings
+o = s:option(Flag, "udp", "启用 UDP")
+o.default = "1"
 
--- WebSocket Host
-o = ss:option(Value, "ws_host", "WebSocket 主机")
-o:depends("network", "ws")
+-- Actions
+s = m:section(TypedSection, "socks-clash", "批量操作")
+s.anonymous = true
+s.addremove = false
 
--- gRPC Service Name
-o = ss:option(Value, "grpc_service_name", "gRPC 服务名")
-o:depends("network", "grpc")
+o = s:option(Button, "test_all", "测试所有节点")
+o.inputtitle = "批量测速"
+o.inputstyle = "apply"
+o.write = function()
+    sys.call("sh /usr/share/socks-clash/test_all_proxies.sh &")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "services", "socks-clash", "servers"))
+end
+
+o = s:option(Button, "clear_delays", "清除延迟数据")
+o.inputtitle = "清除"
+o.inputstyle = "reset"
+o.write = function()
+    sys.call("rm -f /tmp/socks-clash_delay_* 2>/dev/null")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "services", "socks-clash", "servers"))
+end
 
 return m
