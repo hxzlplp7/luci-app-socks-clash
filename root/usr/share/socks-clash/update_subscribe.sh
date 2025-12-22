@@ -1,32 +1,21 @@
 #!/bin/bash
 # SocksClash 订阅更新脚本
-# 参考 OpenClash 逻辑优化
 
 START_LOG="/tmp/socks-clash_start.log"
 LOG_FILE="/tmp/socks-clash.log"
 CONFIG_DIR="/etc/socks-clash/config"
 UCI_CONFIG="socks-clash"
 
-# 日志函数 - 中文版
+# 日志函数 - 完全模仿 OpenClash log.sh
 LOG_OUT() {
     if [ -n "${1}" ]; then
-        # 实时状态写入 start.log
         echo -e "${1}" > "$START_LOG"
-        # 历史记录写入主 log 文件
         echo -e "$(date "+%Y-%m-%d %H:%M:%S") ${1}" >> "$LOG_FILE"
     fi
 }
 
-LOG_INFO() {
-    LOG_OUT "[信息] ${1}"
-}
-
-LOG_ERROR() {
-    LOG_OUT "[错误] ${1}"
-}
-
-LOG_WARN() {
-    LOG_OUT "[警告] ${1}"
+SLOG_CLEAN() {
+    echo "##FINISH##" > "$START_LOG"
 }
 
 # 锁机制
@@ -70,8 +59,8 @@ update_subscription() {
     while [ $retry_count -lt $max_retries ]; do
         retry_count=$((retry_count + 1))
         
-        LOG_INFO "【$retry_count/$max_retries】正在下载订阅【$name】..."
-        LOG_OUT "[信息] 订阅地址: $url"
+        LOG_OUT "Tip:【$retry_count/$max_retries】正在下载订阅【$name】..."
+        LOG_OUT "Tip: 订阅地址: $url"
         
         if curl -sL -m 30 --retry 2 \
             -H "User-Agent: $ua_string" \
@@ -82,10 +71,10 @@ update_subscription() {
                 download_success=true
                 break
             else
-                LOG_ERROR "下载的文件为空..."
+                LOG_OUT "Error: 下载的文件为空..."
             fi
         else
-            LOG_ERROR "下载失败，正在重试..."
+            LOG_OUT "Error:【$retry_count/$max_retries】下载失败, 正在重试..."
         fi
         
         if [ $retry_count -lt $max_retries ]; then
@@ -94,29 +83,29 @@ update_subscription() {
     done
 
     if [ "$download_success" = "true" ]; then
-        LOG_INFO "下载成功，正在验证配置..."
+        LOG_OUT "Tip: 下载成功，正在验证配置..."
         
         # 验证/解码
         if head -5 "$tmp_file" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:|\{)"; then
             mv "$tmp_file" "$output_file"
-            LOG_INFO "订阅【$name】更新成功"
+            LOG_OUT "Tip: 订阅【$name】更新成功"
             return 0
         else
-            LOG_INFO "尝试 Base64 解码..."
+            LOG_OUT "Tip: 尝试 Base64 解码..."
             if base64 -d "$tmp_file" > "${tmp_file}.decoded" 2>/dev/null; then
                  if head -5 "${tmp_file}.decoded" | grep -qE "^(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
                     mv "${tmp_file}.decoded" "$output_file"
-                    LOG_INFO "订阅【$name】解码并更新成功"
+                    LOG_OUT "Tip: 订阅【$name】解码并更新成功"
                     rm -f "$tmp_file"
                     return 0
                  fi
             fi
-            LOG_ERROR "订阅【$name】配置格式无效"
+            LOG_OUT "Error: 订阅【$name】配置格式无效"
             rm -f "$tmp_file" "${tmp_file}.decoded"
             return 1
         fi
     else
-        LOG_ERROR "订阅【$name】下载失败，已重试 $max_retries 次"
+        LOG_OUT "Error: 订阅【$name】下载失败，已重试 $max_retries 次"
         rm -f "$tmp_file"
         return 1
     fi
@@ -128,7 +117,7 @@ mkdir -p "$CONFIG_DIR"
 mkdir -p "/tmp/lock"
 
 LOG_OUT "========================================="
-LOG_INFO "开始更新订阅"
+LOG_OUT "Tip: 开始更新订阅"
 
 # 读取配置逻辑
 . /lib/functions.sh
@@ -159,7 +148,7 @@ handle_subscribe() {
         fi
         count=$((count + 1))
     elif [ "$enabled" = "0" ] && [ -n "$name" ]; then
-        LOG_WARN "跳过已禁用的订阅: $name"
+        LOG_OUT "Tip: 跳过已禁用的订阅: $name"
     fi
 }
 
@@ -167,28 +156,29 @@ config_load "$UCI_CONFIG"
 config_foreach handle_subscribe config_subscribe
 
 if [ "$count" = "0" ]; then
-    LOG_WARN "未找到已启用的订阅"
-    LOG_INFO "请在订阅页面添加并启用订阅"
+    LOG_OUT "Error: 未找到已启用的订阅"
+    LOG_OUT "Tip: 请在订阅页面添加并启用订阅"
 else
-    LOG_INFO "更新统计: 成功 $success / 共 $count"
+    LOG_OUT "Tip: 更新统计: 成功 $success / 共 $count"
 fi
 
 if [ "$success" -gt 0 ]; then
     main_enable=$(uci -q get socks-clash.config.enable)
     if [ "$main_enable" = "0" ]; then
-         LOG_WARN "主服务已禁用，不自动重启..."
+         LOG_OUT "Tip: 主服务已禁用，不自动重启..."
     else
-        LOG_INFO "正在重启 SocksClash 服务..."
+        LOG_OUT "Tip: 正在重启 SocksClash 服务..."
         if /etc/init.d/socks-clash restart >/dev/null 2>&1; then
-             LOG_INFO "SocksClash 重启成功"
+             LOG_OUT "Tip: SocksClash 重启成功"
         else
-             LOG_ERROR "SocksClash 重启失败"
+             LOG_OUT "Error: SocksClash 重启失败"
         fi
     fi
 fi
 
-LOG_INFO "订阅更新完成"
+LOG_OUT "Tip: 订阅更新完成"
 LOG_OUT "========================================="
+SLOG_CLEAN
 
 # 确保清理锁
 del_lock
