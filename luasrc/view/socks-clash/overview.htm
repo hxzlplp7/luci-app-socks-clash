@@ -1,4 +1,4 @@
-<%+header%>
+﻿<%+header%>
 
     <style>
         :root {
@@ -308,8 +308,7 @@
             <div class="sc-card">
                 <div class="sc-card-title">快捷操作</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button class="sc-btn sc-btn-primary" onclick="window.location.href='<%=luci.dispatcher.build_url("
-                        admin/services/socks-clash/dashboard")%>'">
+                    <button class="sc-btn sc-btn-primary" onclick="openDashboard()">
                         <span>🎛️</span> 打开控制面板
                     </button>
                     <button class="sc-btn" style="background: #f1f5f9; color: var(--dark);" onclick="downloadCore()">
@@ -425,6 +424,10 @@
                     setTimeout(updateStatus, 2000);
                     toast('重启命令已发送');
                 });
+            };
+
+            window.openDashboard = function () {
+                window.location.href = '<%=luci.dispatcher.build_url("admin/services/socks-clash/dashboard")%>';
             };
 
             window.downloadCore = function () {
