@@ -305,6 +305,9 @@
 
         <script>
             var currentFile = 'config.yaml';
+            var configApiUrl = '<%=luci.dispatcher.build_url("admin/services/socks-clash/get_config")%>';
+            var saveApiUrl = '<%=luci.dispatcher.build_url("admin/services/socks-clash/save_config")%>';
+            var resetApiUrl = '<%=luci.dispatcher.build_url("admin/services/socks-clash/reset_config")%>';
 
             function toast(msg, type) {
                 var t = document.getElementById('toast');
@@ -319,9 +322,47 @@
                 status.className = 'sc-editor-status ' + (type || '');
             }
 
+            function ajaxGet(url, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            callback(data);
+                        } catch (e) {
+                            callback(null);
+                        }
+                    }
+                };
+                xhr.send();
+            }
+
+            function ajaxPost(url, params, callback) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', url, true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.setRequestHeader('Accept', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            callback(data);
+                        } catch (e) {
+                            callback(null);
+                        }
+                    }
+                };
+                var body = Object.keys(params).map(function (key) {
+                    return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+                }).join('&');
+                xhr.send(body);
+            }
+
             function loadConfig() {
                 setStatus('加载中...');
-                XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/get_config")%>', null, function (xhr, data) {
+                ajaxGet(configApiUrl, function (data) {
                     if (data && data.content !== undefined) {
                         document.getElementById('config-editor').value = data.content;
                         setStatus('已加载', 'success');
@@ -337,8 +378,13 @@
                                 select.appendChild(opt);
                             });
                         }
+                    } else if (data && data.content === '') {
+                        // 空文件也是正常的
+                        document.getElementById('config-editor').value = '';
+                        setStatus('配置文件为空，请编辑或重置', 'success');
                     } else {
-                        setStatus('加载失败', 'error');
+                        document.getElementById('config-editor').value = '# 无法加载配置文件\n# 请点击"重置为默认"创建新配置';
+                        setStatus('配置文件不存在', 'error');
                     }
                 });
             }
@@ -346,7 +392,7 @@
             function loadSelectedFile() {
                 currentFile = document.getElementById('config-file-select').value;
                 setStatus('加载中...');
-                XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/get_config")%>?file=' + encodeURIComponent(currentFile), null, function (xhr, data) {
+                ajaxGet(configApiUrl + '?file=' + encodeURIComponent(currentFile), function (data) {
                     if (data && data.content !== undefined) {
                         document.getElementById('config-editor').value = data.content;
                         setStatus('已加载: ' + currentFile, 'success');
@@ -365,36 +411,30 @@
                 var content = document.getElementById('config-editor').value;
                 setStatus('保存中...');
 
-                XHR.post('<%=luci.dispatcher.build_url("admin/services/socks-clash/save_config")%>',
-                    { file: currentFile, content: content },
-                    function (xhr, data) {
-                        if (data && data.success) {
-                            setStatus('已保存', 'success');
-                            toast('配置已保存');
-                        } else {
-                            setStatus('保存失败: ' + (data && data.message || '未知错误'), 'error');
-                            toast('保存失败', 'error');
-                        }
+                ajaxPost(saveApiUrl, { file: currentFile, content: content }, function (data) {
+                    if (data && data.success) {
+                        setStatus('已保存', 'success');
+                        toast('配置已保存');
+                    } else {
+                        setStatus('保存失败: ' + (data && data.message || '未知错误'), 'error');
+                        toast('保存失败', 'error');
                     }
-                );
+                });
             }
 
             function saveAndRestart() {
                 var content = document.getElementById('config-editor').value;
                 setStatus('保存并重启中...');
 
-                XHR.post('<%=luci.dispatcher.build_url("admin/services/socks-clash/save_config")%>',
-                    { file: currentFile, content: content, restart: '1' },
-                    function (xhr, data) {
-                        if (data && data.success) {
-                            setStatus('已保存并重启', 'success');
-                            toast('配置已保存，服务已重启');
-                        } else {
-                            setStatus('操作失败', 'error');
-                            toast('操作失败', 'error');
-                        }
+                ajaxPost(saveApiUrl, { file: currentFile, content: content, restart: '1' }, function (data) {
+                    if (data && data.success) {
+                        setStatus('已保存并重启', 'success');
+                        toast('配置已保存，服务已重启');
+                    } else {
+                        setStatus('操作失败', 'error');
+                        toast('操作失败', 'error');
                     }
-                );
+                });
             }
 
             function insertTemplate(type) {
@@ -426,12 +466,12 @@
             }
 
             function formatYaml() {
-                toast('YAML 格式化功能开发中', 'info');
+                toast('YAML 格式化功能开发中');
             }
 
             function resetConfig() {
                 if (confirm('确定要重置配置文件吗？这将覆盖当前内容！')) {
-                    XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/reset_config")%>', null, function (xhr, data) {
+                    ajaxGet(resetApiUrl, function (data) {
                         if (data && data.success) {
                             loadConfig();
                             toast('配置已重置');
