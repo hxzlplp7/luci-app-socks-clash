@@ -1,29 +1,47 @@
-#!/bin/sh
+#!/bin/bash
 # SocksClash 订阅更新脚本
+# 参考 OpenClash 逻辑优化
 
+START_LOG="/tmp/socks-clash_start.log"
 LOG_FILE="/tmp/socks-clash.log"
 CONFIG_DIR="/etc/socks-clash/config"
 UCI_CONFIG="socks-clash"
 
-log_plain() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') $1" >> "$LOG_FILE"
+# 日志函数 - 模仿 OpenClash
+LOG_OUT() {
+    if [ -n "${1}" ]; then
+        # 实时状态写入 start.log (用于网页顶栏滚动显示?)
+        echo -e "${1}" > "$START_LOG"
+        # 历史记录写入主 log 文件
+        echo -e "$(date "+%Y-%m-%d %H:%M:%S") ${1}" >> "$LOG_FILE"
+    fi
 }
 
-log_step() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') 第$1步: $2" >> "$LOG_FILE"
+LOG_INFO() {
+    LOG_OUT "Tip: ${1}"
 }
 
-log_hint() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') 提示：$1" >> "$LOG_FILE"
+LOG_ERROR() {
+    LOG_OUT "Error: ${1}"
 }
 
-log_warn() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') 警告：$1" >> "$LOG_FILE"
+LOG_WARN() {
+    LOG_OUT "Warning: ${1}"
 }
 
-log_error() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') 错误：$1" >> "$LOG_FILE"
+# 锁机制
+set_lock() {
+    exec 878>"/tmp/lock/socks_clash_update.lock" 2>/dev/null
+    flock -x 878 2>/dev/null
 }
+
+del_lock() {
+    flock -u 878 2>/dev/null
+    rm -rf "/tmp/lock/socks_clash_update.lock" 2>/dev/null
+}
+
+# 确保清理锁
+trap 'del_lock' EXIT
 
 update_subscription() {
     local name="$1"
@@ -32,86 +50,87 @@ update_subscription() {
     
     [ -z "$url" ] && return 1
     
-    log_hint "正在处理订阅【$name】..."
-    
     local ua_string="Clash"
     case "$ua" in
-        ClashMeta)
-            ua_string="clash.meta"
-            ;;
-        ClashForAndroid)
-            ua_string="ClashForAndroid/2.5.12"
-            ;;
-        V2RayN)
-            ua_string="v2rayN"
-            ;;
-        Shadowrocket)
-            ua_string="Shadowrocket/1.0"
-            ;;
-        Quantumult)
-            ua_string="Quantumult/1.0"
-            ;;
-        Surge)
-            ua_string="Surge/4"
-            ;;
+        ClashMeta) ua_string="clash.meta" ;;
+        ClashForAndroid) ua_string="ClashForAndroid/2.5.12" ;;
+        V2RayN) ua_string="v2rayN" ;;
+        Shadowrocket) ua_string="Shadowrocket/1.0" ;;
+        Quantumult) ua_string="Quantumult/1.0" ;;
+        Surge) ua_string="Surge/4" ;;
     esac
     
     local output_file="$CONFIG_DIR/${name}.yaml"
     local tmp_file="/tmp/socks-clash_sub_${name}.tmp"
     
-    # 下载订阅
-    log_hint "开始下载，UA: $ua_string"
-    log_plain "下载地址: $url"
-    
-    if curl -sL -m 60 --retry 3 \
-        -H "User-Agent: $ua_string" \
-        -o "$tmp_file" \
-        "$url"; then
+    local retry_count=0
+    local max_retries=3
+    local download_success=false
+
+    while [ $retry_count -lt $max_retries ]; do
+        retry_count=$((retry_count + 1))
         
-        # 检查文件是否下载成功
-        if [ ! -s "$tmp_file" ]; then
-            log_error "下载文件为空"
-            rm -f "$tmp_file"
-            return 1
+        LOG_INFO "【$retry_count/$max_retries】Downloading subscription 【$name】..."
+        LOG_OUT "Url: $url"
+        
+        if curl -sL -m 30 --retry 2 \
+            -H "User-Agent: $ua_string" \
+            -o "$tmp_file" \
+            "$url"; then
+            
+            if [ -s "$tmp_file" ]; then
+                download_success=true
+                break
+            else
+                LOG_ERROR "Downloaded file is empty..."
+            fi
+        else
+            LOG_ERROR "Download failed, retrying..."
         fi
         
-        log_hint "下载完成，正在验证配置格式..."
+        if [ $retry_count -lt $max_retries ]; then
+            sleep 2
+        fi
+    done
+
+    if [ "$download_success" = "true" ]; then
+        LOG_INFO "Download successful, verifying config..."
         
-        # 验证 YAML 格式
+        # 验证/解码
         if head -5 "$tmp_file" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:|\{)"; then
             mv "$tmp_file" "$output_file"
-            log_hint "订阅【$name】更新成功"
+            LOG_INFO "Subscription 【$name】 updated successfully"
             return 0
         else
-            # 尝试 base64 解码
-            log_hint "尝试 Base64 解码..."
+            LOG_INFO "Attempting Base64 decode..."
             if base64 -d "$tmp_file" > "${tmp_file}.decoded" 2>/dev/null; then
-                if head -5 "${tmp_file}.decoded" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
+                 if head -5 "${tmp_file}.decoded" | grep -qE "^(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
                     mv "${tmp_file}.decoded" "$output_file"
-                    log_hint "订阅【$name】解码并更新成功"
+                    LOG_INFO "Subscription 【$name】 decoded and updated successfully"
                     rm -f "$tmp_file"
                     return 0
-                fi
+                 fi
             fi
-            log_error "订阅内容格式无效，请确认订阅链接是否正确"
+            LOG_ERROR "Invalid config format for 【$name】"
             rm -f "$tmp_file" "${tmp_file}.decoded"
             return 1
         fi
     else
-        log_error "下载失败，请检查网络连接"
+        LOG_ERROR "Failed to download subscription 【$name】 after $max_retries attempts"
         rm -f "$tmp_file"
         return 1
     fi
 }
 
 # 主程序
+set_lock
 mkdir -p "$CONFIG_DIR"
+mkdir -p "/tmp/lock"
 
-log_plain "========================================="
-log_plain "SocksClash 订阅更新程序启动"
+LOG_OUT "========================================="
+LOG_INFO "Start updating subscriptions"
 
-# 调试: 显示所有 UCI 配置
-log_step "一" "读取订阅配置..."
+# 读取配置逻辑
 . /lib/functions.sh
 
 count=0
@@ -121,31 +140,26 @@ handle_subscribe() {
     local section="$1"
     local enabled name address sub_ua
     
-    config_get_bool enabled "$section" enabled 1  # 默认为 1，尝试强制处理
+    config_get_bool enabled "$section" enabled 1
     config_get name "$section" name ""
     config_get address "$section" address ""
     config_get sub_ua "$section" sub_ua "ClashMeta"
     
-    # 强制修正 enabled 逻辑，如果配置里真的是 0，那 uci get bool 应该返回 0
-    # 但我们这里再确认一下 uci原始值
+    # 容错处理: 再次确认为 0 才是真的禁用
     local raw_enabled=$(uci -q get "$UCI_CONFIG.$section.enabled")
     if [ "$raw_enabled" = "0" ]; then
-        config_get_bool enabled "$section" enabled 0
+        enabled=0
     else
-        # 如果没有值 或者 值为1，都认为是启用
         enabled=1
     fi
     
-    # log_plain "检测: $name (状态: $enabled)"
-    
     if [ "$enabled" = "1" ] && [ -n "$name" ] && [ -n "$address" ]; then
-        log_step "二" "开始更新订阅: $name"
         if update_subscription "$name" "$address" "$sub_ua"; then
             success=$((success + 1))
         fi
         count=$((count + 1))
     elif [ "$enabled" = "0" ] && [ -n "$name" ]; then
-       log_plain "跳过已禁用订阅: $name"
+        LOG_WARN "Skipping disabled subscription: $name"
     fi
 }
 
@@ -153,28 +167,28 @@ config_load "$UCI_CONFIG"
 config_foreach handle_subscribe config_subscribe
 
 if [ "$count" = "0" ]; then
-    log_warn "未找到已启用的订阅"
-    log_hint "请前往「订阅」页面添加并启用订阅链接"
+    LOG_WARN "No enabled subscriptions found"
+    LOG_INFO "Please add and enable subscriptions in the Subscription page"
 else
-    log_step "三" "更新汇总: 成功 $success / 总计 $count"
+    LOG_INFO "Update Summary: Success $success / Total $count"
 fi
 
-# 如果更新成功，重启服务
 if [ "$success" -gt 0 ]; then
-    # 检查主开关，如果没开，提示一下
     main_enable=$(uci -q get socks-clash.config.enable)
     if [ "$main_enable" = "0" ]; then
-         log_warn "SocksClash 主服务未启用，订阅已更新但服务不会自动启动"
-         log_hint "请前往「设置」页面启用 SocksClash，或在「概览」页面点击启动"
+         LOG_WARN "Main service is disabled, not restarting..."
     else
-        log_step "四" "重启 SocksClash 服务以应用新配置..."
+        LOG_INFO "Restarting SocksClash service..."
         if /etc/init.d/socks-clash restart >/dev/null 2>&1; then
-             log_hint "SocksClash 重启成功"
+             LOG_INFO "SocksClash restarted successfully"
         else
-             log_error "SocksClash 重启失败"
+             LOG_ERROR "Failed to restart SocksClash"
         fi
     fi
 fi
 
-log_plain "操作完成"
-log_plain "========================================="
+LOG_INFO "Update finished"
+LOG_OUT "========================================="
+
+# 确保清理锁 (虽然 trap 会处理，但为了安全起见)
+del_lock
