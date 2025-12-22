@@ -136,6 +136,19 @@ start_service() {
 
 stop_service() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') [信息] 正在停止 SocksClash..." >> /tmp/socks-clash.log
+    
+    # 强制杀死 clash 进程 (procd 有时无法正常停止)
+    killall -9 clash 2>/dev/null
+    
+    # 等待进程退出
+    sleep 1
+    
+    # 再次检查并杀死残留进程
+    if pgrep -f "/etc/socks-clash/core/clash" >/dev/null 2>&1; then
+        pkill -9 -f "/etc/socks-clash/core/clash" 2>/dev/null
+    fi
+    
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [信息] SocksClash 已停止" >> /tmp/socks-clash.log
 }
 
 reload_service() {

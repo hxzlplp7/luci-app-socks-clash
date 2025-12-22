@@ -361,12 +361,34 @@
                 XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/status")%>', null, function (x, data) {
                     if (data && data.running) {
                         API_BASE = 'http://' + data.lan_ip + ':' + data.cn_port;
-                        initDashboard();
+                        // 等待 Clash API 就绪
+                        setTimeout(function () {
+                            checkApiAndInit();
+                        }, 500);
                     } else {
-                        $('groups-container').innerHTML = '<div style="text-align:center; padding:40px; color:#ef4444;">Clash 未运行，请先启动服务</div>';
+                        showError('Clash 未运行，请先启动服务');
                     }
                 });
             };
+
+            function showError(msg) {
+                $('groups-container').innerHTML = '<div style="text-align:center; padding:40px; color:#ef4444; font-weight:600;">' + msg + '</div>';
+            }
+
+            function checkApiAndInit() {
+                var timeout = setTimeout(function () {
+                    showError('无法连接 Clash API，请检查服务状态');
+                }, 5000);
+
+                api('/version', 'GET', null, function (err, data) {
+                    clearTimeout(timeout);
+                    if (err) {
+                        showError('Clash API 连接失败: ' + (err || '未知错误'));
+                    } else {
+                        initDashboard();
+                    }
+                });
+            }
 
             function initDashboard() {
                 loadConfig();

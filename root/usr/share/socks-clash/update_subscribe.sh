@@ -7,10 +7,10 @@ LOG_FILE="/tmp/socks-clash.log"
 CONFIG_DIR="/etc/socks-clash/config"
 UCI_CONFIG="socks-clash"
 
-# 日志函数 - 模仿 OpenClash
+# 日志函数 - 中文版
 LOG_OUT() {
     if [ -n "${1}" ]; then
-        # 实时状态写入 start.log (用于网页顶栏滚动显示?)
+        # 实时状态写入 start.log
         echo -e "${1}" > "$START_LOG"
         # 历史记录写入主 log 文件
         echo -e "$(date "+%Y-%m-%d %H:%M:%S") ${1}" >> "$LOG_FILE"
@@ -18,15 +18,15 @@ LOG_OUT() {
 }
 
 LOG_INFO() {
-    LOG_OUT "Tip: ${1}"
+    LOG_OUT "[信息] ${1}"
 }
 
 LOG_ERROR() {
-    LOG_OUT "Error: ${1}"
+    LOG_OUT "[错误] ${1}"
 }
 
 LOG_WARN() {
-    LOG_OUT "Warning: ${1}"
+    LOG_OUT "[警告] ${1}"
 }
 
 # 锁机制
@@ -70,8 +70,8 @@ update_subscription() {
     while [ $retry_count -lt $max_retries ]; do
         retry_count=$((retry_count + 1))
         
-        LOG_INFO "【$retry_count/$max_retries】Downloading subscription 【$name】..."
-        LOG_OUT "Url: $url"
+        LOG_INFO "【$retry_count/$max_retries】正在下载订阅【$name】..."
+        LOG_OUT "[信息] 订阅地址: $url"
         
         if curl -sL -m 30 --retry 2 \
             -H "User-Agent: $ua_string" \
@@ -82,10 +82,10 @@ update_subscription() {
                 download_success=true
                 break
             else
-                LOG_ERROR "Downloaded file is empty..."
+                LOG_ERROR "下载的文件为空..."
             fi
         else
-            LOG_ERROR "Download failed, retrying..."
+            LOG_ERROR "下载失败，正在重试..."
         fi
         
         if [ $retry_count -lt $max_retries ]; then
@@ -94,29 +94,29 @@ update_subscription() {
     done
 
     if [ "$download_success" = "true" ]; then
-        LOG_INFO "Download successful, verifying config..."
+        LOG_INFO "下载成功，正在验证配置..."
         
         # 验证/解码
         if head -5 "$tmp_file" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:|\{)"; then
             mv "$tmp_file" "$output_file"
-            LOG_INFO "Subscription 【$name】 updated successfully"
+            LOG_INFO "订阅【$name】更新成功"
             return 0
         else
-            LOG_INFO "Attempting Base64 decode..."
+            LOG_INFO "尝试 Base64 解码..."
             if base64 -d "$tmp_file" > "${tmp_file}.decoded" 2>/dev/null; then
                  if head -5 "${tmp_file}.decoded" | grep -qE "^(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
                     mv "${tmp_file}.decoded" "$output_file"
-                    LOG_INFO "Subscription 【$name】 decoded and updated successfully"
+                    LOG_INFO "订阅【$name】解码并更新成功"
                     rm -f "$tmp_file"
                     return 0
                  fi
             fi
-            LOG_ERROR "Invalid config format for 【$name】"
+            LOG_ERROR "订阅【$name】配置格式无效"
             rm -f "$tmp_file" "${tmp_file}.decoded"
             return 1
         fi
     else
-        LOG_ERROR "Failed to download subscription 【$name】 after $max_retries attempts"
+        LOG_ERROR "订阅【$name】下载失败，已重试 $max_retries 次"
         rm -f "$tmp_file"
         return 1
     fi
@@ -128,7 +128,7 @@ mkdir -p "$CONFIG_DIR"
 mkdir -p "/tmp/lock"
 
 LOG_OUT "========================================="
-LOG_INFO "Start updating subscriptions"
+LOG_INFO "开始更新订阅"
 
 # 读取配置逻辑
 . /lib/functions.sh
@@ -159,7 +159,7 @@ handle_subscribe() {
         fi
         count=$((count + 1))
     elif [ "$enabled" = "0" ] && [ -n "$name" ]; then
-        LOG_WARN "Skipping disabled subscription: $name"
+        LOG_WARN "跳过已禁用的订阅: $name"
     fi
 }
 
@@ -167,28 +167,28 @@ config_load "$UCI_CONFIG"
 config_foreach handle_subscribe config_subscribe
 
 if [ "$count" = "0" ]; then
-    LOG_WARN "No enabled subscriptions found"
-    LOG_INFO "Please add and enable subscriptions in the Subscription page"
+    LOG_WARN "未找到已启用的订阅"
+    LOG_INFO "请在订阅页面添加并启用订阅"
 else
-    LOG_INFO "Update Summary: Success $success / Total $count"
+    LOG_INFO "更新统计: 成功 $success / 共 $count"
 fi
 
 if [ "$success" -gt 0 ]; then
     main_enable=$(uci -q get socks-clash.config.enable)
     if [ "$main_enable" = "0" ]; then
-         LOG_WARN "Main service is disabled, not restarting..."
+         LOG_WARN "主服务已禁用，不自动重启..."
     else
-        LOG_INFO "Restarting SocksClash service..."
+        LOG_INFO "正在重启 SocksClash 服务..."
         if /etc/init.d/socks-clash restart >/dev/null 2>&1; then
-             LOG_INFO "SocksClash restarted successfully"
+             LOG_INFO "SocksClash 重启成功"
         else
-             LOG_ERROR "Failed to restart SocksClash"
+             LOG_ERROR "SocksClash 重启失败"
         fi
     fi
 fi
 
-LOG_INFO "Update finished"
+LOG_INFO "订阅更新完成"
 LOG_OUT "========================================="
 
-# 确保清理锁 (虽然 trap 会处理，但为了安全起见)
+# 确保清理锁
 del_lock
