@@ -125,7 +125,7 @@ EOF
     
     echo "  - MATCH,$final_rule" >> "$CONFIG_FILE"
     
-    echo "$(date '+%Y-%m-%d %H:%M:%S') Configuration generated: $CONFIG_FILE" >> /tmp/socks-clash.log
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [信息] 配置文件已生成: $CONFIG_FILE" >> /tmp/socks-clash.log
 }
 
 # Main

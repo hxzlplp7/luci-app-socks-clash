@@ -363,11 +363,15 @@
                     <div class="sc-log-stats">
                         总行数： <span id="log-count">0</span>
                     </div>
-                    <div class="sc-auto-scroll-toggle">
-                        <span>
-                            自动滚动
-                        </span>
-                        <div class="sc-toggle active" id="auto-scroll-toggle" onclick="toggleAutoScroll()"></div>
+                    <div style="display: flex; gap: 24px;">
+                        <div class="sc-auto-scroll-toggle">
+                            <span>自动刷新</span>
+                            <div class="sc-toggle active" id="auto-refresh-toggle" onclick="toggleAutoRefresh()"></div>
+                        </div>
+                        <div class="sc-auto-scroll-toggle">
+                            <span>自动滚动</span>
+                            <div class="sc-toggle active" id="auto-scroll-toggle" onclick="toggleAutoScroll()"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -376,7 +380,9 @@
         <script>
             var allLogs = [];
             var autoScroll = true;
+            var autoRefresh = true;
             var logInterval;
+            var lastLogHash = '';
 
             function parseLogLine(line) {
                 var level = 'info';
@@ -390,17 +396,35 @@
                     message = line.substring(time.length).trim();
                 }
 
-                // Detect level
-                var lowerLine = line.toLowerCase();
-                if (lowerLine.includes('error') || lowerLine.includes('fail')) {
+                // Detect level from Chinese markers
+                if (message.includes('[错误]') || message.includes('error') || message.includes('失败')) {
                     level = 'error';
-                } else if (lowerLine.includes('warn')) {
+                    message = message.replace('[错误]', '').trim();
+                } else if (message.includes('[警告]') || message.includes('warn')) {
                     level = 'warning';
-                } else if (lowerLine.includes('debug')) {
+                    message = message.replace('[警告]', '').trim();
+                } else if (message.includes('[成功]')) {
+                    level = 'info';
+                    message = message.replace('[成功]', '✓ ').trim();
+                } else if (message.includes('[信息]')) {
+                    level = 'info';
+                    message = message.replace('[信息]', '').trim();
+                } else if (message.includes('[调试]') || message.includes('debug')) {
                     level = 'debug';
+                    message = message.replace('[调试]', '').trim();
                 }
 
                 return { time: time, level: level, message: message };
+            }
+
+            function simpleHash(str) {
+                var hash = 0;
+                for (var i = 0; i < str.length; i++) {
+                    var char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return hash.toString();
             }
 
             function renderLogs(logs) {
@@ -414,9 +438,14 @@
 
                 var html = '';
                 logs.forEach(function (log) {
+                    var levelClass = 'sc-log-level-' + log.level;
+                    var levelText = log.level === 'error' ? '错误' :
+                        log.level === 'warning' ? '警告' :
+                            log.level === 'debug' ? '调试' : '信息';
+
                     html += '<div class="sc-log-line">';
                     html += '<span class="sc-log-time">' + (log.time || '--') + '</span>';
-                    html += '<span class="sc-log-level sc-log-level-' + log.level + '">' + log.level + '</span>';
+                    html += '<span class="sc-log-level ' + levelClass + '">' + levelText + '</span>';
                     html += '<span class="sc-log-message">' + escapeHtml(log.message) + '</span>';
                     html += '</div>';
                 });
@@ -451,6 +480,13 @@
             function refreshLog() {
                 XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/get_log")%>', null, function (xhr, data) {
                     if (data && data.log) {
+                        // 检查日志是否有变化
+                        var newHash = simpleHash(data.log);
+                        if (newHash === lastLogHash) {
+                            return; // 日志没有变化，不刷新
+                        }
+                        lastLogHash = newHash;
+
                         var lines = data.log.split('\n').filter(function (line) { return line.trim(); });
                         allLogs = lines.map(parseLogLine);
                         filterLogs();
@@ -462,6 +498,7 @@
                 if (confirm('确定要清空所有日志吗？')) {
                     XHR.get('<%=luci.dispatcher.build_url("admin/services/socks-clash/clear_log")%>', null, function (xhr, data) {
                         allLogs = [];
+                        lastLogHash = '';
                         renderLogs([]);
                     });
                 }
@@ -487,9 +524,21 @@
                 toggle.classList.toggle('active', autoScroll);
             }
 
+            function toggleAutoRefresh() {
+                autoRefresh = !autoRefresh;
+                var toggle = document.getElementById('auto-refresh-toggle');
+                toggle.classList.toggle('active', autoRefresh);
+
+                if (autoRefresh) {
+                    logInterval = setInterval(refreshLog, 5000);
+                } else {
+                    clearInterval(logInterval);
+                }
+            }
+
             document.addEventListener('DOMContentLoaded', function () {
                 refreshLog();
-                logInterval = setInterval(refreshLog, 3000);
+                logInterval = setInterval(refreshLog, 5000); // 改为5秒刷新一次
             });
 
             window.addEventListener('beforeunload', function () {
