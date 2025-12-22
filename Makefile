@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-socks-clash
-PKG_VERSION:=1.0.7
+PKG_VERSION:=1.0.13
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
@@ -31,6 +31,7 @@ define Build/Prepare
 	$(CP) ./luasrc $(PKG_BUILD_DIR)/
 	$(CP) ./root $(PKG_BUILD_DIR)/
 	$(CP) ./po $(PKG_BUILD_DIR)/
+	if [ -d "./htdocs" ]; then $(CP) ./htdocs $(PKG_BUILD_DIR)/; fi
 endef
 
 define Build/Compile
@@ -89,6 +90,12 @@ define Package/$(PKG_NAME)/install
 	# Install ACL
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/rpcd/acl.d/*.json $(1)/usr/share/rpcd/acl.d/ 2>/dev/null || true
+	
+	# Install static resources (logo, etc.)
+	if [ -d "$(PKG_BUILD_DIR)/htdocs" ]; then \
+		$(INSTALL_DIR) $(1)/www; \
+		$(CP) $(PKG_BUILD_DIR)/htdocs/* $(1)/www/; \
+	fi
 endef
 
 define Package/$(PKG_NAME)/postinst
