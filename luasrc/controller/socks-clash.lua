@@ -35,6 +35,9 @@ function index()
     -- Subscribe page
     entry({"admin", "services", "socks-clash", "subscribe"}, cbi("socks-clash/subscribe"), "订阅", 55).leaf = true
     
+    -- Cron Jobs page
+    entry({"admin", "services", "socks-clash", "cron"}, cbi("socks-clash/cron"), "定时任务", 57).leaf = true
+    
     -- Log page
     entry({"admin", "services", "socks-clash", "log"}, template("socks-clash/log"), "日志", 60).leaf = true
     
