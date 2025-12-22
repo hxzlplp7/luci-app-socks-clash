@@ -54,44 +54,6 @@ get_arch() {
     esac
 }
 
-download_with_progress() {
-    local url="$1"
-    local output="$2"
-    local desc="$3"
-    
-    log "开始下载: $desc"
-    log "下载地址: $url"
-    
-    # 先获取文件大小
-    local total_size=$(curl -sI "$url" 2>/dev/null | grep -i content-length | awk '{print $2}' | tr -d '\r')
-    
-    if [ -n "$total_size" ] && [ "$total_size" -gt 0 ] 2>/dev/null; then
-        local size_mb=$(echo "scale=2; $total_size / 1048576" | bc 2>/dev/null || echo "未知")
-        log "文件大小: ${size_mb} MB"
-    fi
-    
-    # 使用 curl 下载，显示进度
-    log "正在下载，请稍候..."
-    
-    if curl -L --connect-timeout 30 --max-time 600 \
-        --progress-bar \
-        -o "$output" "$url" 2>&1 | while read line; do
-            # 解析进度信息并记录
-            if echo "$line" | grep -q '%'; then
-                percent=$(echo "$line" | grep -oE '[0-9]+%' | tail -1)
-                if [ -n "$percent" ]; then
-                    log "下载进度: $percent"
-                fi
-            fi
-        done; then
-        log_success "下载完成"
-        return 0
-    else
-        log_error "下载失败"
-        return 1
-    fi
-}
-
 download_core() {
     local arch=$(get_arch)
     
@@ -114,9 +76,11 @@ download_core() {
     local url="https://github.com/MetaCubeX/mihomo/releases/download/$version/$filename"
     
     log "目标版本: $version"
+    log "下载地址: $url"
+    log "正在下载，请耐心等待..."
     
-    # 下载文件
-    if curl -L --connect-timeout 30 --max-time 600 -o "$TMP_DIR/$filename" "$url" 2>&1; then
+    # 使用静默模式下载，不显示进度条
+    if curl -sL --connect-timeout 30 --max-time 600 -o "$TMP_DIR/$filename" "$url" 2>&1; then
         log_success "文件下载完成"
         
         log "正在解压文件..."
@@ -128,10 +92,10 @@ download_core() {
             # 验证内核
             log "正在验证内核..."
             if "$CORE_PATH" -v >/dev/null 2>&1; then
-                local installed_version=$("$CORE_PATH" -v 2>/dev/null | awk '{print $2}' | head -1)
+                local installed_version=$("$CORE_PATH" -v 2>/dev/null | head -1)
                 log_success "Clash Meta 内核安装成功!"
-                log "安装版本: $installed_version"
-                log "安装路径: $CORE_PATH"
+                log "已安装: $installed_version"
+                log "路径: $CORE_PATH"
                 log "========================================="
                 return 0
             else
@@ -158,7 +122,7 @@ log "========================================="
 
 # 检查现有内核
 if [ -x "$CORE_PATH" ]; then
-    current_version=$("$CORE_PATH" -v 2>/dev/null | awk '{print $2}' | head -1)
+    current_version=$("$CORE_PATH" -v 2>/dev/null | head -1)
     log "检测到已安装内核: $current_version"
     
     if [ "$1" = "force" ]; then

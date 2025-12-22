@@ -53,23 +53,33 @@ update_subscription() {
     
     # 下载订阅
     log "正在下载订阅配置..."
+    log "订阅地址: $url"
+    
     if curl -sL -m 60 --retry 3 \
         -H "User-Agent: $ua_string" \
         -o "$tmp_file" \
         "$url"; then
         
+        # 检查文件是否下载成功
+        if [ ! -s "$tmp_file" ]; then
+            log_error "下载的文件为空"
+            rm -f "$tmp_file"
+            return 1
+        fi
+        
         log "下载完成，正在验证配置格式..."
         
         # 验证 YAML 格式
-        if head -1 "$tmp_file" | grep -qE "^(port:|mixed-port:|proxies:|\{)"; then
+        if head -5 "$tmp_file" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:|\{)"; then
             mv "$tmp_file" "$output_file"
             log_success "订阅更新成功: $name"
+            log "配置已保存到: $output_file"
             return 0
         else
             # 尝试 base64 解码
             log "尝试 Base64 解码..."
             if base64 -d "$tmp_file" > "${tmp_file}.decoded" 2>/dev/null; then
-                if head -1 "${tmp_file}.decoded" | grep -qE "^(port:|mixed-port:|proxies:)"; then
+                if head -5 "${tmp_file}.decoded" | grep -qE "(port:|mixed-port:|proxies:|proxy-groups:|rules:)"; then
                     mv "${tmp_file}.decoded" "$output_file"
                     log_success "订阅解码并更新成功: $name"
                     rm -f "$tmp_file"
@@ -77,6 +87,7 @@ update_subscription() {
                 fi
             fi
             log_error "订阅内容格式无效: $name"
+            log "提示: 请确认订阅地址返回的是 Clash 格式的配置"
             rm -f "$tmp_file" "${tmp_file}.decoded"
             return 1
         fi
@@ -97,23 +108,33 @@ log "========================================="
 
 # 从 UCI 读取订阅配置
 count=0
-uci -q show $UCI_CONFIG | grep "config_subscribe" | grep "\.name=" | while read -r line; do
-    section=$(echo "$line" | cut -d'.' -f2)
+success=0
+
+# 使用 uci show 获取所有 config_subscribe 类型的配置
+for section in $(uci show $UCI_CONFIG 2>/dev/null | grep "=config_subscribe" | cut -d'.' -f2 | cut -d'=' -f1); do
     enabled=$(uci -q get "$UCI_CONFIG.$section.enabled")
     
     if [ "$enabled" = "1" ]; then
         name=$(uci -q get "$UCI_CONFIG.$section.name")
         address=$(uci -q get "$UCI_CONFIG.$section.address")
-        sub_ua=$(uci -q get "$UCI_CONFIG.$section.sub_ua" || echo "ClashMeta")
+        sub_ua=$(uci -q get "$UCI_CONFIG.$section.sub_ua")
+        [ -z "$sub_ua" ] && sub_ua="ClashMeta"
         
-        log "处理订阅 [$name]..."
-        update_subscription "$name" "$address" "$sub_ua"
-        count=$((count + 1))
+        if [ -n "$name" ] && [ -n "$address" ]; then
+            log "处理订阅: $name"
+            if update_subscription "$name" "$address" "$sub_ua"; then
+                success=$((success + 1))
+            fi
+            count=$((count + 1))
+        fi
     fi
 done
 
 if [ "$count" = "0" ]; then
     log "未找到已启用的订阅"
+    log "提示: 请在 LuCI 界面的'订阅'页面添加订阅地址"
+else
+    log "处理完成: $success/$count 个订阅更新成功"
 fi
 
 log "========================================="
