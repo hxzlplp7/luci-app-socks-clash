@@ -130,9 +130,29 @@ jobs:
         run: |
           cd sdk
           
-          # Update and install feeds
+          # Update and install feeds with retry logic
           echo "Updating feeds..."
-          ./scripts/feeds update -a
+          MAX_RETRIES=3
+          RETRY_DELAY=10
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i of $MAX_RETRIES: Updating feeds..."
+            if ./scripts/feeds update -a; then
+              echo "Feeds updated successfully!"
+              break
+            else
+              echo "Feeds update failed on attempt $i"
+              if [ $i -lt $MAX_RETRIES ]; then
+                echo "Waiting ${RETRY_DELAY}s before retry..."
+                sleep $RETRY_DELAY
+                # Clean up partial downloads
+                rm -rf feeds/base feeds/packages 2>/dev/null || true
+              else
+                echo "All $MAX_RETRIES attempts failed!"
+                exit 1
+              fi
+            fi
+          done
           
           echo "Installing luci and dependencies..."
           ./scripts/feeds install -a -p luci
