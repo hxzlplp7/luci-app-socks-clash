@@ -23,7 +23,8 @@ get_config() {
     config_get dashboard_password config dashboard_password ''
     config_get socks_enabled config socks_enabled 1
     config_get http_enabled config http_enabled 1
-    config_get mixed_enabled config mixed_enabled 0
+config_get mixed_enabled config mixed_enabled 0
+config_get coexist_with_openclash config coexist_with_openclash 0
     config_get coexist_with_openclash config coexist_with_openclash 0
 }
 
@@ -97,6 +98,22 @@ check_core() {
 
 start_service() {
     get_config
+    local __openclash_running=0
+    if [ -x "/bin/pgrep" ]; then
+        if pgrep -f "/etc/openclash/core/clash" >/dev/null 2>&1; then
+            __openclash_running=1
+        fi
+    fi
+    if [ -z "$coexist_with_openclash" ]; then
+        coexist_with_openclash=0
+    fi
+    if [ "$coexist_with_openclash" -ne 1 ] && [ "$__openclash_running" -eq 1 ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [错误] OpenClash 已在运行，SocksClash 不能与之同时启动。请停止 OpenClash，或将 coexist_with_openclash 设置为 1 以启用共存模式。" >> /tmp/socks-clash.log
+        return 1
+    fi
+    if [ "$coexist_with_openclash" -eq 1 ] && [ "$__openclash_running" -eq 1 ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') [警告] SocksClash 已在共存模式下运行，可能存在端口冲突。" >> /tmp/socks-clash.log
+    fi
     # OpenClash coexistence guard
     local __openclash_running=0
     if [ -x "/bin/pgrep" ]; then
