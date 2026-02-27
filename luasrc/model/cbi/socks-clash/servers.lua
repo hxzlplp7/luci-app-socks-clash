@@ -77,7 +77,7 @@ end
 o.width = "8%"
 
 -- Edit Server Details
-s = m:section(NamedSection, nil, "servers", "服务器详细配置")
+s = m:section(NamedSection, "servers", "servers", "服务器详细配置")
 s.addremove = false
 s.anonymous = true
 
