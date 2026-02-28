@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-socks-clash
-PKG_VERSION:=1.2.0
+PKG_VERSION:=1.2.3
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
@@ -101,9 +101,12 @@ endef
 define Package/$(PKG_NAME)/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
-	rm -rf /tmp/luci-modulecache
-	rm -f /tmp/luci-indexcache
-	/etc/init.d/rpcd restart 2>/dev/null
+ 	rm -rf /tmp/luci-modulecache
+ 	rm -f /tmp/luci-indexcache
+ 	/etc/init.d/rpcd restart 2>/dev/null
+ 	if [ -x "/usr/share/socks-clash/migrate_config.sh" ]; then
+ 		/usr/share/socks-clash/migrate_config.sh
+ 	fi
 }
 exit 0
 endef
